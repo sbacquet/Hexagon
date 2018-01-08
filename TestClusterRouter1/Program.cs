@@ -7,6 +7,7 @@ using System.Configuration;
 using Akka.Actor;
 using Akka.Cluster;
 using Akka.Configuration.Hocon;
+using Akka.Routing;
 
 namespace TestClusterRouter1
 {
@@ -18,8 +19,20 @@ namespace TestClusterRouter1
             var config = section.AkkaConfig;
             using (var actorSystem = ActorSystem.Create("ClusterSystem", config))
             {
-                var router = actorSystem.ActorOf(Akka.Routing.FromConfig.Instance.Props(Props.Create<EchoActor.EchoActor>()), "echodispatcher");
-                router.Tell("coucou");
+                var actor = actorSystem.ActorOf(Props.Create(() => new EchoActor.EchoActor()).WithRouter(FromConfig.Instance), "echodispatcher");
+                //var actor = actorSystem.ActorOf(FromConfig.Instance.Props(Props.Create<EchoActor.EchoActor>()), "echodispatcher");
+
+                actorSystem.Log.Log(Akka.Event.LogLevel.InfoLevel, "Waiting...");
+                System.Threading.Thread.Sleep(5000);
+                actorSystem.Log.Log(Akka.Event.LogLevel.InfoLevel, "Done waiting.");
+
+                actor.Tell("coucou 1");
+                actor.Tell("coucou 2");
+                actor.Tell("coucou 3");
+                actor.Tell("coucou 4");
+                actor.Tell("coucou 5");
+                actor.Tell("coucou 6");
+                actor.Tell(new Broadcast("coucou tout le monde !"));
                 Console.ReadLine();
                 actorSystem.Terminate();
             }
