@@ -51,5 +51,8 @@ namespace Hexagon
 
         public static XmlMessage FromString(string xml)
             => new XmlMessage { Content = xml };
+
+        public bool Match(string path)
+            => this.AsPathNavigable().CreateNavigator().SelectSingleNode(path) != null;
     }
 }

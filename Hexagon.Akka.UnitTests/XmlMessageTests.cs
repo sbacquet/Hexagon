@@ -7,10 +7,11 @@ using Akka;
 using Akka.Actor;
 using Akka.TestKit.Xunit2;
 using Xunit;
-using Hexagon.AkkaImpl;
 
 namespace Hexagon.AkkaImpl.UnitTests
 {
+    using XmlActor = Actor<XmlMessage, XmlMessagePattern>;
+
     public class XmlMessageTests : TestKit
     {
         bool AlwaysTrue(XmlMessage message) => true;
@@ -18,18 +19,19 @@ namespace Hexagon.AkkaImpl.UnitTests
         [Fact]
         public void AnActorCanTellAnotherOne()
         {
-            var a1 = Tuple.Create<Action<XmlMessage, ICanReceiveMessage<XmlMessage>, ICanReceiveMessage<XmlMessage>>, Predicate<XmlMessage>>(
+            var messageFactory = new XmlMessageFactory();
+            var a1 = new XmlActor.ActionWithFilter(
                 (message, sender, self) => TestActor.Tell(XmlMessage.FromString("<message>done</message>")), 
                 AlwaysTrue);
-            var actor1 = Sys.ActorOf(Props.Create(() => new Actor<XmlMessage, XmlMessagePattern>(
-                new [] { a1 }, 
-                new XmlMessageFactory())), "actor1");
-            var a2 = Tuple.Create<Action<XmlMessage, ICanReceiveMessage<XmlMessage>, ICanReceiveMessage<XmlMessage>>, Predicate<XmlMessage>>(
+            var actor1 = Sys.ActorOf(Props.Create(() => new XmlActor(
+                new [] { a1 },
+                messageFactory)), "actor1");
+            var a2 = new XmlActor.ActionWithFilter(
                 (message, sender, self) => actor1.Tell(XmlMessage.FromString("<message>OK received</message>")), 
                 AlwaysTrue);
-            var actor2 = Sys.ActorOf(Props.Create(() => new Actor<XmlMessage, XmlMessagePattern>(
-                new [] { a2 }, 
-                new XmlMessageFactory())), "actor2");
+            var actor2 = Sys.ActorOf(Props.Create(() => new XmlActor(
+                new [] { a2 },
+                messageFactory)), "actor2");
             actor2.Tell(XmlMessage.FromString("<message>OK?</message>"), TestActor);
             ExpectMsg<XmlMessage>(message => message.Content == "<message>done</message>");
         }
@@ -37,14 +39,14 @@ namespace Hexagon.AkkaImpl.UnitTests
         [Fact]
         public void AnActorCanAskAnotherOne()
         {
-            var a1 = Tuple.Create<Action<XmlMessage, ICanReceiveMessage<XmlMessage>, ICanReceiveMessage<XmlMessage>>, Predicate<XmlMessage>>(
+            var messageFactory = new XmlMessageFactory();
+            var a1 = new XmlActor.ActionWithFilter(
                 (message, sender, self) => sender.Tell(XmlMessage.FromString("<message>OK!</message>"), self),
                 AlwaysTrue);
-            var actor1 = Sys.ActorOf(Props.Create(() => new Actor<XmlMessage, XmlMessagePattern>(
+            var actor1 = Sys.ActorOf(Props.Create(() => new XmlActor(
                 new[] { a1 },
-                new XmlMessageFactory())), "actor1");
-            var messageFactory = new XmlMessageFactory();
-            var a2 = Tuple.Create<Action<XmlMessage, ICanReceiveMessage<XmlMessage>, ICanReceiveMessage<XmlMessage>>, Predicate<XmlMessage>>(
+                messageFactory)), "actor1");
+            var a2 = new XmlActor.ActionWithFilter(
                 (message, sender, self) =>
                 {
                     var r = 
@@ -55,9 +57,9 @@ namespace Hexagon.AkkaImpl.UnitTests
                     TestActor.Tell(XmlMessage.FromString("<message>done</message>"));
                 },
                 AlwaysTrue);
-            var actor2 = Sys.ActorOf(Props.Create(() => new Actor<XmlMessage, XmlMessagePattern>(
+            var actor2 = Sys.ActorOf(Props.Create(() => new XmlActor(
                 new[] { a2 },
-                new XmlMessageFactory())), "actor2");
+                messageFactory)), "actor2");
             actor2.Tell(XmlMessage.FromString("<message>test</message>"));
             ExpectMsg<XmlMessage>(message => message.Content == "<message>done</message>");
         }
@@ -65,18 +67,18 @@ namespace Hexagon.AkkaImpl.UnitTests
         [Fact]
         public void AnActorCanBeAskedFromOutside()
         {
-            var a1 = Tuple.Create<Action<XmlMessage, ICanReceiveMessage<XmlMessage>, ICanReceiveMessage<XmlMessage>>, Predicate<XmlMessage>>(
+            var a1 = new XmlActor.ActionWithFilter(
                 (message, sender, self) => sender.Tell(XmlMessage.FromString("<message>OK!</message>"), self),
                 AlwaysTrue);
             var messageFactory = new XmlMessageFactory();
-            var actor1 = Sys.ActorOf(Props.Create(() => new Actor<XmlMessage, XmlMessagePattern>(
+            var actor1 = Sys.ActorOf(Props.Create(() => new XmlActor(
                 new[] { a1 },
                 messageFactory)), "actor1");
             var r = 
                 new ActorRefMessageReceiver<XmlMessage>(actor1)
                 .Ask(XmlMessage.FromString("<message>test</message>"), messageFactory)
                 .Result;
-            Assert.Equal("<message>OK!</message>", r.Content);
+            Assert.True(r.Match(@"message[. = ""OK!""]"));
         }
     }
 }

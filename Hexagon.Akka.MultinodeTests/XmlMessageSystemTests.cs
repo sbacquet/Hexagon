@@ -22,6 +22,8 @@ using FluentAssertions;
 
 namespace Hexagon.AkkaImpl.MultinodeTests
 {
+    using XmlActor = Actor<XmlMessage, XmlMessagePattern>;
+
     public class XmlMessageSystemTestsConfig : MultiNodeConfig
     {
         public readonly RoleName First;
@@ -102,11 +104,11 @@ namespace Hexagon.AkkaImpl.MultinodeTests
             {
                 RunOn(() =>
                 {
-                    var a1 = Tuple.Create<Action<XmlMessage, ICanReceiveMessage<XmlMessage>, ICanReceiveMessage<XmlMessage>>, Predicate<XmlMessage>>(
+                    var a1 = new XmlActor.ActionWithFilter(
                         (message, sender, self) => sender.Tell(XmlMessage.FromString("<message>OK!</message>"), self),
                         m => true);
                     var messageFactory = new XmlMessageFactory();
-                    var actor1 = Sys.ActorOf(Props.Create(() => new Actor<XmlMessage, XmlMessagePattern>(
+                    var actor1 = Sys.ActorOf(Props.Create(() => new XmlActor(
                         new[] { a1 },
                         messageFactory)), "actor1");
 
@@ -122,7 +124,9 @@ namespace Hexagon.AkkaImpl.MultinodeTests
                 {
                     // send to actor at the same node
                     Mediator.Tell(new Send("/user/actor1", XmlMessage.FromString("<message>OK?</message>")));
-                    ExpectMsg<BytesMessage>();
+                    var responseMessage = ExpectMsg<BytesMessage>();
+                    XmlMessage message = XmlMessage.FromBytes(responseMessage.Bytes);
+                    Assert.True(message.Match(@"message[. = ""OK!""]"));
                 }, _second, _third);
 
                 EnterBarrier("after-2");

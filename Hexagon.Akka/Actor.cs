@@ -17,7 +17,18 @@ namespace Hexagon.AkkaImpl
         where P : IMessagePattern<M>
         where M : IMessage
     {
-        public Actor(IEnumerable<Tuple<Action<M, ICanReceiveMessage<M>, ICanReceiveMessage<M>>, Predicate<M>>> actions, IMessageFactory<M> factory)
+        public class ActionWithFilter
+        {
+            public ActionWithFilter(Action<M, ActorRefMessageReceiver<M>, ActorRefMessageReceiver<M>> action, Predicate<M> filter)
+            {
+                Action = action;
+                Filter = filter;
+            }
+            public readonly Action<M, ActorRefMessageReceiver<M>, ActorRefMessageReceiver<M>> Action;
+            public readonly Predicate<M> Filter;
+        }
+
+        public Actor(IEnumerable<ActionWithFilter> actions, IMessageFactory<M> factory)
         {
             Receive<RegisterToGlobalDirectory<P>>(mess =>
             {
@@ -33,12 +44,12 @@ namespace Hexagon.AkkaImpl
             foreach (var action in actions)
             {
                 Receive<M>(
-                    message => action.Item1.Invoke(
+                    message => action.Action.Invoke(
                         message, 
                         new ActorRefMessageReceiver<M>(Context.Sender),
                         new ActorRefMessageReceiver<M>(Context.Self)
                         ),
-                    action.Item2);
+                    action.Filter);
             }
         }
     }

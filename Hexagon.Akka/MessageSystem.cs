@@ -104,7 +104,7 @@ namespace Hexagon.AkkaImpl
                 if (group.Count() == 1)
                 {
                     var actions = group.Select(entry => 
-                        Tuple.Create<Action<M, ICanReceiveMessage<M>, ICanReceiveMessage<M>>, Predicate<M>>(
+                        new Actor<M,P>.ActionWithFilter(
                             entry.Action, 
                             null));
 
@@ -112,8 +112,8 @@ namespace Hexagon.AkkaImpl
                 }
                 else
                 {
-                    var actions = group.Select(entry => 
-                        Tuple.Create<Action<M, ICanReceiveMessage<M>, ICanReceiveMessage<M>>, Predicate<M>>(
+                    var actions = group.Select(entry =>
+                        new Actor<M, P>.ActionWithFilter(
                             entry.Action, 
                             message => entry.Pattern.Match(message)));
 
