@@ -9,7 +9,8 @@ using Akka.Cluster;
 
 namespace Hexagon.AkkaImpl
 {
-    internal class ActorDirectory<M, P> where P : IMessagePattern<M>
+    public class ActorDirectory<M, P> 
+        where P : IMessagePattern<M>
     {
         ActorSystem System { get; }
         public ActorDirectory(ActorSystem actorSystem)
@@ -17,20 +18,21 @@ namespace Hexagon.AkkaImpl
             System = actorSystem;
         }
 
-        public async Task<IEnumerable<string>> GetMatchingActorPaths(M message)
+        public async Task<IEnumerable<string>> GetMatchingActorPaths(M message, IMessagePatternFactory<P> messagePatternFactory)
         {
             var replicator = DistributedData.Get(System).Replicator;
             var keysResponse = await replicator.Ask<GetKeysIdsResult>(Dsl.GetKeyIds);
             var keys = keysResponse.Keys;
             var actorPaths = new List<string>();
+            var readConsistency = ReadLocal.Instance; //new ReadAll(TimeSpan.FromSeconds(5));
             foreach (string key in keys)
             {
-                var setKey = new ORSetKey<P>(key);
-                var getResponse = await replicator.Ask<IGetResponse>(Dsl.Get(setKey, ReadLocal.Instance));
+                var setKey = new ORSetKey<GSet<string>>(key);
+                var getResponse = await replicator.Ask<IGetResponse>(Dsl.Get(setKey, readConsistency));
                 if (getResponse.IsSuccessful)
                 {
                     var patterns = getResponse.Get(setKey);
-                    if (patterns.Any(pattern => pattern.Match(message)))
+                    if (patterns.Any(pattern => messagePatternFactory.FromConjuncts(pattern.ToArray()).Match(message)))
                     {
                         actorPaths.Add(key);
                     }
@@ -39,17 +41,17 @@ namespace Hexagon.AkkaImpl
             return actorPaths;
         }
 
-        public async void PublishPatterns(string actorPath, IEnumerable<P> patterns, double timeoutInSeconds = 5)
+        public async Task PublishPatterns(string actorPath, IEnumerable<P> patterns)
         {
             if (!patterns.Any())
                 throw new Exception("cannot distribute empty pattern list");
 
             var cluster = Cluster.Get(System);
-            var set = patterns.Aggregate(ORSet<P>.Empty, (s, pattern) => s.Add(cluster.SelfUniqueAddress, pattern));
+            var set = patterns.Aggregate(ORSet<GSet<string>>.Empty, (s, pattern) => s.Add(cluster, GSet.Create(pattern.Conjuncts)));
 
             var replicator = DistributedData.Get(System).Replicator;
-            var setKey = new ORSetKey<P>(actorPath);
-            var writeConsistency = new WriteAll(TimeSpan.FromSeconds(timeoutInSeconds));
+            var setKey = new ORSetKey<GSet<string>>(actorPath);
+            var writeConsistency = WriteLocal.Instance; //new WriteAll(TimeSpan.FromSeconds(5));
             var updateResponse = await replicator.Ask<IUpdateResponse>(Dsl.Update(setKey, set, writeConsistency));
             if (!updateResponse.IsSuccessful)
             {

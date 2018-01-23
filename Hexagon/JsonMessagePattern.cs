@@ -9,9 +9,7 @@ namespace Hexagon
 {
     public class JsonMessagePattern : IMessagePattern<JsonMessage>
     {
-        readonly string[] Conjuncts;
-
-        public int ConjunctCount => Conjuncts.Length;
+        public string[] Conjuncts { get; }
 
         public JsonMessagePattern(string[] conjuncts)
         {

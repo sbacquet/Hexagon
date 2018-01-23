@@ -9,9 +9,7 @@ namespace Hexagon
 {
     public class XmlMessagePattern : IMessagePattern<XmlMessage>
     {
-        readonly string[] Conjuncts;
-
-        public int ConjunctCount => Conjuncts.Length;
+        public string[] Conjuncts { get; }
 
         public XmlMessagePattern(string[] conjuncts)
         {

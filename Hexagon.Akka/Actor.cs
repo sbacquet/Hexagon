@@ -30,13 +30,13 @@ namespace Hexagon.AkkaImpl
 
         public Actor(IEnumerable<ActionWithFilter> actions, IMessageFactory<M> factory)
         {
-            Receive<RegisterToGlobalDirectory<P>>(mess =>
+            ReceiveAsync<RegisterToGlobalDirectory<P>>(mess =>
             {
                 var mediator = DistributedPubSub.Get(Context.System).Mediator;
                 mediator.Tell(new Put(Self));
 
                 var actorDirectory = new ActorDirectory<M, P>(Context.System);
-                actorDirectory.PublishPatterns(Self.Path.Name, mess.Patterns);
+                return actorDirectory.PublishPatterns(Self.Path.Name, mess.Patterns);
             });
 
             Receive<BytesMessage>(message => Self.Forward(factory.FromBytes(message.Bytes)));

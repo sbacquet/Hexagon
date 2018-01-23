@@ -31,8 +31,12 @@ namespace Hexagon
     }
     public interface IMessagePattern<M>
     {
+        string[] Conjuncts { get; }
         bool Match(M message);
-        int ConjunctCount { get; }
+    }
+    public interface IMessagePatternFactory<P>
+    {
+        P FromConjuncts(string[] conjuncts);
     }
 
     public class MessageProps
