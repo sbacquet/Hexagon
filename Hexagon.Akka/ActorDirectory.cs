@@ -27,7 +27,7 @@ namespace Hexagon.AkkaImpl
             var readConsistency = ReadLocal.Instance; //new ReadAll(TimeSpan.FromSeconds(5));
             foreach (string key in keys)
             {
-                var setKey = new ORSetKey<GSet<string>>(key);
+                var setKey = new GSetKey<GSet<string>>(key);
                 var getResponse = await replicator.Ask<IGetResponse>(Dsl.Get(setKey, readConsistency));
                 if (getResponse.IsSuccessful)
                 {
@@ -47,10 +47,10 @@ namespace Hexagon.AkkaImpl
                 throw new Exception("cannot distribute empty pattern list");
 
             var cluster = Cluster.Get(System);
-            var set = patterns.Aggregate(ORSet<GSet<string>>.Empty, (s, pattern) => s.Add(cluster, GSet.Create(pattern.Conjuncts)));
+            var set = patterns.Aggregate(GSet<GSet<string>>.Empty, (s, pattern) => s.Add(GSet.Create(pattern.Conjuncts)));
 
             var replicator = DistributedData.Get(System).Replicator;
-            var setKey = new ORSetKey<GSet<string>>(actorPath);
+            var setKey = new GSetKey<GSet<string>>(actorPath);
             var writeConsistency = WriteLocal.Instance; //new WriteAll(TimeSpan.FromSeconds(5));
             var updateResponse = await replicator.Ask<IUpdateResponse>(Dsl.Update(setKey, set, writeConsistency));
             if (!updateResponse.IsSuccessful)

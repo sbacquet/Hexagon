@@ -15,8 +15,6 @@ using Xunit;
 
 namespace Hexagon.AkkaImpl.MultinodeTests
 {
-    using XmlActor = Actor<XmlMessage, XmlMessagePattern>;
-
     public class ActorDirectoryTestsConfig : MultiNodeConfig
     {
         public RoleName First { get; }
@@ -75,11 +73,10 @@ namespace Hexagon.AkkaImpl.MultinodeTests
         public void Tests()
         {
             Must_startup_3_nodes_cluster();
-            Must_send_and_receive_string();
-            Must_send_and_receive_through_directory();
+            ActorDirectoryMustGetInSync();
         }
 
-        public void Must_startup_3_nodes_cluster()
+        void Must_startup_3_nodes_cluster()
         {
             Within(TimeSpan.FromSeconds(15), () =>
             {
@@ -90,42 +87,7 @@ namespace Hexagon.AkkaImpl.MultinodeTests
             });
         }
 
-        public void Must_send_and_receive_string()
-        {
-            Within(TimeSpan.FromSeconds(15), () =>
-            {
-                RunOn(() =>
-                {
-                    var cluster = Cluster.Get(Sys);
-                    var key = new ORSetKey<GSet<string>>("keyA");
-                    var set = ORSet.Create(cluster.SelfUniqueAddress, GSet.Create("value"));
-                    var writeConsistency = WriteLocal.Instance;
-
-                    var response = _replicator.Ask<IUpdateResponse>(Dsl.Update(key, set)).Result;
-                    Assert.True(response.IsSuccessful);
-                    //response.IsSuccessful.Should().BeTrue();
-
-                    System.Threading.Thread.Sleep(5000);
-                }, _first);
-
-                EnterBarrier("2-registered");
-
-                RunOn(() =>
-                {
-                    var key = new ORSetKey<GSet<string>>("keyA");
-                    var readConsistency = ReadLocal.Instance;
-
-                    var response = _replicator.Ask<IGetResponse>(Dsl.Get(key, readConsistency)).Result;
-                    Assert.True(response.IsSuccessful);
-                    var data = response.Get(key);
-                    Assert.True(1 == data.Count);
-                    Assert.True(1 == data.First().Count);
-                    Assert.Equal("value", data.First().First());
-                }, _second, _third);
-            });
-        }
-
-        public void Must_send_and_receive_through_directory()
+        void ActorDirectoryMustGetInSync()
         {
             Within(TimeSpan.FromSeconds(30), () =>
             {
@@ -177,6 +139,8 @@ namespace Hexagon.AkkaImpl.MultinodeTests
                     var actorPaths = _actorDirectory.GetMatchingActorPaths(XmlMessage.FromString(xml), patternFactory).Result;
                     actorPaths.Should().BeEquivalentTo("/user/test1", "/user/test2");
                 }, _first, _second, _third);
+
+                EnterBarrier("3-done");
             });
         }
     }

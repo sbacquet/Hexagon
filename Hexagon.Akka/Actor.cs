@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using Akka.Cluster.Tools.PublishSubscribe;
 using Akka.Actor;
+using System.Threading.Tasks;
 
 namespace Hexagon.AkkaImpl
 {
@@ -28,7 +29,18 @@ namespace Hexagon.AkkaImpl
             public readonly Predicate<M> Filter;
         }
 
-        public Actor(IEnumerable<ActionWithFilter> actions, IMessageFactory<M> factory)
+        public class AsyncActionWithFilter
+        {
+            public AsyncActionWithFilter(Func<M, ActorRefMessageReceiver<M>, ActorRefMessageReceiver<M>, Task> action, Predicate<M> filter)
+            {
+                Action = action;
+                Filter = filter;
+            }
+            public readonly Func<M, ActorRefMessageReceiver<M>, ActorRefMessageReceiver<M>, Task> Action;
+            public readonly Predicate<M> Filter;
+        }
+
+        public Actor(IEnumerable<ActionWithFilter> actions, IEnumerable<AsyncActionWithFilter> asyncActions, IMessageFactory<M> factory)
         {
             ReceiveAsync<RegisterToGlobalDirectory<P>>(mess =>
             {
@@ -36,21 +48,34 @@ namespace Hexagon.AkkaImpl
                 mediator.Tell(new Put(Self));
 
                 var actorDirectory = new ActorDirectory<M, P>(Context.System);
-                return actorDirectory.PublishPatterns(Self.Path.Name, mess.Patterns);
+                return actorDirectory.PublishPatterns(Self.Path.ToStringWithoutAddress(), mess.Patterns);
             });
 
             Receive<BytesMessage>(message => Self.Forward(factory.FromBytes(message.Bytes)));
 
-            foreach (var action in actions)
-            {
-                Receive<M>(
-                    message => action.Action.Invoke(
-                        message, 
-                        new ActorRefMessageReceiver<M>(Context.Sender),
-                        new ActorRefMessageReceiver<M>(Context.Self)
-                        ),
-                    action.Filter);
-            }
+            if (actions != null)
+                foreach (var action in actions)
+                {
+                    Receive<M>(
+                        message => action.Action.Invoke(
+                            message, 
+                            new ActorRefMessageReceiver<M>(Context.Sender),
+                            new ActorRefMessageReceiver<M>(Context.Self)
+                            ),
+                        action.Filter);
+                }
+
+            if (asyncActions != null)
+                foreach (var asyncAction in asyncActions)
+                {
+                    ReceiveAsync<M>(
+                        message => asyncAction.Action.Invoke(
+                            message,
+                            new ActorRefMessageReceiver<M>(Context.Sender),
+                            new ActorRefMessageReceiver<M>(Context.Self)
+                            ),
+                        asyncAction.Filter);
+                }
         }
     }
 }

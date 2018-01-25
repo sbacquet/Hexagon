@@ -11,7 +11,7 @@ namespace Hexagon
     {
         public string[] Conjuncts { get; }
 
-        public XmlMessagePattern(string[] conjuncts)
+        public XmlMessagePattern(params string[] conjuncts)
         {
             if (conjuncts.Length == 0) { throw new System.ArgumentException("conjuncts cannot be empty"); }
             Conjuncts = conjuncts;

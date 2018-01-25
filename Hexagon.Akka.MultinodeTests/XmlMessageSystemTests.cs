@@ -19,6 +19,7 @@ using Akka.Remote.TestKit;
 using Akka.TestKit;
 using Xunit;
 using FluentAssertions;
+using Akka.DistributedData;
 
 namespace Hexagon.AkkaImpl.MultinodeTests
 {
@@ -36,14 +37,20 @@ namespace Hexagon.AkkaImpl.MultinodeTests
             Second = Role("second");
             Third = Role("third");
 
-            CommonConfig = ConfigurationFactory.ParseString(@"
-                akka.loglevel = INFO
-                akka.actor.provider = ""Akka.Cluster.ClusterActorRefProvider, Akka.Cluster""
-                akka.actor.serialize-messages = off
-                akka.remote.log-remote-lifecycle-events = off
-                akka.cluster.auto-down-unreachable-after = 0s
-                akka.cluster.pub-sub.max-delta-elements = 500
-            ").WithFallback(DistributedPubSub.DefaultConfig());
+            CommonConfig = 
+                ConfigurationFactory
+                .ParseString(@"
+                    akka.loglevel = INFO
+                    akka.actor.provider = ""Akka.Cluster.ClusterActorRefProvider, Akka.Cluster""
+                    akka.actor.serialize-messages = off
+                    akka.remote.log-remote-lifecycle-events = off
+                    akka.cluster.auto-down-unreachable-after = 0s
+                    akka.cluster.pub-sub.max-delta-elements = 500
+                ")
+                .WithFallback(DistributedData.DefaultConfig())
+                .WithFallback(DistributedPubSub.DefaultConfig());
+
+            TestTransport = true;
         }
     }
 
@@ -67,8 +74,6 @@ namespace Hexagon.AkkaImpl.MultinodeTests
             _third = config.Third;
         }
 
-        public IActorRef Mediator { get { return DistributedPubSub.Get(Sys).Mediator; } }
-
         private void Join(RoleName from, RoleName to)
         {
             RunOn(() =>
@@ -84,52 +89,57 @@ namespace Hexagon.AkkaImpl.MultinodeTests
         public void Tests()
         {
             Must_startup_3_nodes_cluster();
-            Must_receive_message_by_path();
+            XmlMessageSystem_must_work();
         }
 
-        public void Must_startup_3_nodes_cluster()
+        void Must_startup_3_nodes_cluster()
         {
             Within(TimeSpan.FromSeconds(15), () =>
             {
                 Join(_first, _first);
                 Join(_second, _first);
                 Join(_third, _first);
-                EnterBarrier("after-1");
             });
         }
 
-        public void Must_receive_message_by_path()
+        void XmlMessageSystem_must_work()
         {
-            Within(TimeSpan.FromSeconds(15), () =>
+            Within(TimeSpan.FromSeconds(30), () =>
             {
                 RunOn(() =>
                 {
-                    var a1 = new XmlActor.ActionWithFilter(
-                        (message, sender, self) => sender.Tell(XmlMessage.FromString("<message>OK!</message>"), self),
-                        m => true);
-                    var messageFactory = new XmlMessageFactory();
-                    var actor1 = Sys.ActorOf(Props.Create(() => new XmlActor(
-                        new[] { a1 },
-                        messageFactory)), "actor1");
-
-                    Mediator.Tell(new Put(actor1));
-
-                    System.Threading.Thread.Sleep(3000);
-
+                    _messageSystem.RegisterAsync(
+                            new XmlMessagePattern(@"/request"),
+                            async (message, sender, self) =>
+                            {
+                                XmlMessage answer = await _messageSystem.SendMessageSync(XmlMessage.FromString(@"<question>Why?</question>"));
+                                answer.Should().Match<XmlMessage>(mess => mess.Match(@"/answer[. = ""Because.""]"));
+                                sender.Tell(XmlMessage.FromString(@"<response>OK</response>"), self);
+                            },
+                            "actor1");
                 }, _first);
-
-                EnterBarrier("2-registered");
 
                 RunOn(() =>
                 {
-                    // send to actor at the same node
-                    Mediator.Tell(new Send("/user/actor1", XmlMessage.FromString("<message>OK?</message>")));
-                    var responseMessage = ExpectMsg<BytesMessage>();
-                    XmlMessage message = XmlMessage.FromBytes(responseMessage.Bytes);
-                    Assert.True(message.Match(@"message[. = ""OK!""]"));
-                }, _second, _third);
+                    // Actor that reacts to no XmlMessage
+                    _messageSystem.Register(
+                            new XmlMessagePattern(@"/question[. = ""Why?""]"),
+                            (message, sender, self) => sender.Tell(XmlMessage.FromString(@"<answer>Because.</answer>"), self),
+                            "actor3");
+                }, _third);
+                EnterBarrier("2-registered");
 
-                EnterBarrier("after-2");
+                _messageSystem.Start();
+                EnterBarrier("3-started");
+
+                RunOn(() =>
+                {
+                    string xml = @"<request>GO</request>";
+                    _messageSystem.SendMessage(XmlMessage.FromString(xml), new ActorRefMessageReceiver<XmlMessage>(TestActor));
+                    ExpectMsg<BytesMessage>(message => XmlMessage.FromBytes(message.Bytes).Match(@"/response[. = ""OK""]"));
+                }, _second);
+
+                EnterBarrier("4-done");
             });
         }
     }

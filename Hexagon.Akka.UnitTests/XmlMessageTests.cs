@@ -25,12 +25,14 @@ namespace Hexagon.AkkaImpl.UnitTests
                 AlwaysTrue);
             var actor1 = Sys.ActorOf(Props.Create(() => new XmlActor(
                 new [] { a1 },
+                null,
                 messageFactory)), "actor1");
             var a2 = new XmlActor.ActionWithFilter(
                 (message, sender, self) => actor1.Tell(XmlMessage.FromString("<message>OK received</message>")), 
                 AlwaysTrue);
             var actor2 = Sys.ActorOf(Props.Create(() => new XmlActor(
                 new [] { a2 },
+                null,
                 messageFactory)), "actor2");
             actor2.Tell(XmlMessage.FromString("<message>OK?</message>"), TestActor);
             ExpectMsg<XmlMessage>(message => message.Content == "<message>done</message>");
@@ -45,19 +47,20 @@ namespace Hexagon.AkkaImpl.UnitTests
                 AlwaysTrue);
             var actor1 = Sys.ActorOf(Props.Create(() => new XmlActor(
                 new[] { a1 },
+                null,
                 messageFactory)), "actor1");
-            var a2 = new XmlActor.ActionWithFilter(
-                (message, sender, self) =>
+            var a2 = new XmlActor.AsyncActionWithFilter(
+                async (message, sender, self) =>
                 {
-                    var r = 
+                    var r = await
                         new ActorRefMessageReceiver<XmlMessage>(actor1)
-                        .Ask(XmlMessage.FromString("<message>OK?</message>"), messageFactory)
-                        .Result;
+                        .Ask(XmlMessage.FromString("<message>OK?</message>"), messageFactory);
                     Assert.Equal("<message>OK!</message>", r.Content);
                     TestActor.Tell(XmlMessage.FromString("<message>done</message>"));
                 },
                 AlwaysTrue);
             var actor2 = Sys.ActorOf(Props.Create(() => new XmlActor(
+                null,
                 new[] { a2 },
                 messageFactory)), "actor2");
             actor2.Tell(XmlMessage.FromString("<message>test</message>"));
@@ -73,6 +76,7 @@ namespace Hexagon.AkkaImpl.UnitTests
             var messageFactory = new XmlMessageFactory();
             var actor1 = Sys.ActorOf(Props.Create(() => new XmlActor(
                 new[] { a1 },
+                null,
                 messageFactory)), "actor1");
             var r = 
                 new ActorRefMessageReceiver<XmlMessage>(actor1)
