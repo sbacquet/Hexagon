@@ -32,11 +32,12 @@ namespace Hexagon
     public interface IMessagePattern<M>
     {
         string[] Conjuncts { get; }
+        bool IsSecondary { get; }
         bool Match(M message);
     }
     public interface IMessagePatternFactory<P>
     {
-        P FromConjuncts(string[] conjuncts);
+        P FromConjuncts(string[] conjuncts, bool isSecondary=false);
     }
 
     public class MessageProps

@@ -11,10 +11,16 @@ namespace Hexagon
     {
         public string[] Conjuncts { get; }
 
-        public JsonMessagePattern(string[] conjuncts)
+        public bool IsSecondary { get; }
+
+        public JsonMessagePattern(params string[] conjuncts) : this(false, conjuncts)
+        {
+        }
+        public JsonMessagePattern(bool isSecondary, params string[] conjuncts)
         {
             if (conjuncts.Length == 0) { throw new System.ArgumentException("conjuncts cannot be empty"); }
             Conjuncts = conjuncts;
+            IsSecondary = isSecondary;
         }
         public bool Match(JsonMessage message)
         {

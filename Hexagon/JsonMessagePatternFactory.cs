@@ -8,7 +8,7 @@ namespace Hexagon
 {
     public class JsonMessagePatternFactory : IMessagePatternFactory<JsonMessagePattern>
     {
-        public JsonMessagePattern FromConjuncts(string[] conjuncts)
+        public JsonMessagePattern FromConjuncts(string[] conjuncts, bool isSecondary)
             => new JsonMessagePattern(conjuncts);
     }
 }

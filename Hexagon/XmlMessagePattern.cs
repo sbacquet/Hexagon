@@ -11,10 +11,16 @@ namespace Hexagon
     {
         public string[] Conjuncts { get; }
 
-        public XmlMessagePattern(params string[] conjuncts)
+        public bool IsSecondary { get; }
+
+        public XmlMessagePattern(params string[] conjuncts) : this(false, conjuncts)
+        {
+        }
+        public XmlMessagePattern(bool isSecondary, params string[] conjuncts)
         {
             if (conjuncts.Length == 0) { throw new System.ArgumentException("conjuncts cannot be empty"); }
             Conjuncts = conjuncts;
+            IsSecondary = isSecondary;
         }
         public bool Match(XmlMessage message)
         {

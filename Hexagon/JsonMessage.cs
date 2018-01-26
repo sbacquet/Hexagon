@@ -33,5 +33,7 @@ namespace Hexagon
             => FromString(
                 JObject.FromObject(obj)
                 .ToString(withIndentation ? Newtonsoft.Json.Formatting.None : Newtonsoft.Json.Formatting.Indented));
+
+        public override string ToString() => Content;
     }
 }

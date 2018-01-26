@@ -54,5 +54,8 @@ namespace Hexagon
 
         public bool Match(string path)
             => this.AsPathNavigable().CreateNavigator().SelectSingleNode(path) != null;
+
+        public override string ToString() => Content;
+
     }
 }

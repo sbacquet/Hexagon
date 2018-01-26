@@ -40,7 +40,7 @@ namespace Hexagon.AkkaImpl.MultinodeTests
             CommonConfig = 
                 ConfigurationFactory
                 .ParseString(@"
-                    akka.loglevel = INFO
+                    akka.loglevel = DEBUG
                     akka.actor.provider = ""Akka.Cluster.ClusterActorRefProvider, Akka.Cluster""
                     akka.actor.serialize-messages = off
                     akka.remote.log-remote-lifecycle-events = off
@@ -109,24 +109,31 @@ namespace Hexagon.AkkaImpl.MultinodeTests
                 RunOn(() =>
                 {
                     _messageSystem.RegisterAsync(
-                            new XmlMessagePattern(@"/request"),
+                            new XmlMessagePattern($@"/request[@routeto = ""{_first.Name}""]"),
                             async (message, sender, self) =>
                             {
                                 XmlMessage answer = await _messageSystem.SendMessageAndAwaitResponse(XmlMessage.FromString(@"<question>Why?</question>"));
                                 answer.Should().Match<XmlMessage>(mess => mess.Match(@"/answer[. = ""Because.""]"));
                                 sender.Tell(XmlMessage.FromString(@"<response>OK</response>"), self);
                             },
-                            "actor1");
+                            _first.Name);
                 }, _first);
 
                 RunOn(() =>
                 {
+                    _messageSystem.Register(
+                            new XmlMessagePattern(true, $@"/request"),
+                            (message, sender, self) =>
+                            {
+                                sender.Tell(XmlMessage.FromString(@"<response>OK2</response>"), self);
+                            },
+                            _second.Name);
                     // Actor that reacts to no XmlMessage
                     _messageSystem.Register(
                             new XmlMessagePattern(@"/question[. = ""Why?""]"),
                             (message, sender, self) => sender.Tell(XmlMessage.FromString(@"<answer>Because.</answer>"), self),
-                            "actor3");
-                }, _third);
+                            _second.Name);
+                }, _second);
                 EnterBarrier("2-registered");
 
                 _messageSystem.Start();
@@ -134,10 +141,13 @@ namespace Hexagon.AkkaImpl.MultinodeTests
 
                 RunOn(() =>
                 {
-                    string xml = @"<request>GO</request>";
+                    string xml = @"<request routeto=""first"">GO</request>";
                     _messageSystem.SendMessage(XmlMessage.FromString(xml), new ActorRefMessageReceiver<XmlMessage>(TestActor));
-                    ExpectMsg<BytesMessage>(message => XmlMessage.FromBytes(message.Bytes).Match(@"/response[. = ""OK""]"));
-                }, _second);
+                    var message1 = ExpectMsg<BytesMessage>();
+                    var message2 = ExpectMsg<BytesMessage>();
+                    XmlMessage.FromBytes(message1.Bytes).Match(@"/response").Should().BeTrue();
+                    XmlMessage.FromBytes(message2.Bytes).Match(@"/response").Should().BeTrue();
+                }, _third);
 
                 EnterBarrier("4-done");
             });

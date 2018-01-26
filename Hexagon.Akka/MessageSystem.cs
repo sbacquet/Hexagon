@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Akka.Actor;
 using Akka.Cluster.Tools.PublishSubscribe;
 using Akka.DistributedData;
+using Akka.Event;
 
 //[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("Hexagon.Akka.UnitTests")]
 
@@ -29,6 +30,7 @@ namespace Hexagon.AkkaImpl
         readonly IActorRef Replicator;
         readonly IMessageFactory<M> MessageFactory;
         readonly IMessagePatternFactory<P> PatternFactory;
+        readonly ILoggingAdapter Logger;
 
         public MessageSystem(
             string systemName, 
@@ -54,6 +56,7 @@ namespace Hexagon.AkkaImpl
             Replicator = DistributedData.Get(ActorSystem).Replicator;
             MessageFactory = factory;
             PatternFactory = patternFactory;
+            Logger = Logging.GetLogger(system, this);
         }
 
         public void Register(P pattern, Action<M, ICanReceiveMessage<M>, ICanReceiveMessage<M>> action, string key)
@@ -80,15 +83,22 @@ namespace Hexagon.AkkaImpl
             var actorPaths = await actorDirectory.GetMatchingActorPaths(message, PatternFactory);
             if (!actorPaths.Any())
             {
-                // TODO: log
+                Logger.Error(@"Cannot find any receiver of message {0}", message);
                 return;
             }
-            var mainReceiver = new ActorPathMessageReceiver<M>(actorPaths.First(), Mediator);
+            string mainReceiverPath = actorPaths.First();
+            Logger.Debug(@"Main receiver of message {0} : {1}", message, mainReceiverPath);
+            var mainReceiver = new ActorPathMessageReceiver<M>(mainReceiverPath, Mediator);
             mainReceiver.Tell(message, sender);
-            foreach (var secondaryActorPath in actorPaths.Where((_, i) => i > 0))
+            var secondaryReceiverPaths = actorPaths.Where((_, i) => i > 0);
+            if (secondaryReceiverPaths.Any())
             {
-                var secondaryReceiver = new ActorPathMessageReceiver<M>(secondaryActorPath, Mediator);
-                secondaryReceiver.Tell(message, null);
+                Logger.Debug(@"Secondary receivers of message {0} : {1}", message, string.Join(", ", secondaryReceiverPaths));
+                foreach (var secondaryActorPath in secondaryReceiverPaths)
+                {
+                    var secondaryReceiver = new ActorPathMessageReceiver<M>(secondaryActorPath, Mediator);
+                    secondaryReceiver.Tell(message, null);
+                }
             }
         }
 
@@ -98,15 +108,22 @@ namespace Hexagon.AkkaImpl
             var actorPaths = await actorDirectory.GetMatchingActorPaths(message, PatternFactory);
             if (!actorPaths.Any())
             {
-                // TODO: log
+                Logger.Error(@"Cannot find any receiver of message {0}", message);
                 return default(M);
             }
-            foreach (var secondaryActorPath in actorPaths.Where((_, i) => i > 0))
+            var secondaryReceiverPaths = actorPaths.Where((_, i) => i > 0);
+            if (secondaryReceiverPaths.Any())
             {
-                var secondaryReceiver = new ActorPathMessageReceiver<M>(secondaryActorPath, Mediator);
-                secondaryReceiver.Tell(message, null);
+                Logger.Debug(@"Secondary receivers of message {0} : {1}", message, string.Join(", ", secondaryReceiverPaths));
+                foreach (var secondaryActorPath in secondaryReceiverPaths)
+                {
+                    var secondaryReceiver = new ActorPathMessageReceiver<M>(secondaryActorPath, Mediator);
+                    secondaryReceiver.Tell(message, null);
+                }
             }
-            var mainReceiver = new ActorPathMessageReceiver<M>(actorPaths.First(), Mediator);
+            string mainReceiverPath = actorPaths.First();
+            Logger.Debug(@"Main receiver of message {0} : {1}", message, mainReceiverPath);
+            var mainReceiver = new ActorPathMessageReceiver<M>(mainReceiverPath, Mediator);
             return await mainReceiver.Ask(message, MessageFactory, timeout, cancellationToken);
         }
 
@@ -146,10 +163,7 @@ namespace Hexagon.AkkaImpl
 
                 actorProps = Props.Create(() => new Actor<M,P>(actions, asyncActions, MessageFactory));
                 var actor = ActorSystem.ActorOf(actorProps, actorName);
-                actor.Tell(new RegisterToGlobalDirectory<P>(
-                    group
-                    .Select(entry => entry.Pattern)
-                    .OrderByDescending(pattern => pattern.Conjuncts.Length)));
+                actor.Tell(new RegisterToGlobalDirectory<P>(group.Select(entry => entry.Pattern)));
             }
         }
     }

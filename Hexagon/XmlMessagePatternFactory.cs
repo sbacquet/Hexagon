@@ -8,7 +8,7 @@ namespace Hexagon
 {
     public class XmlMessagePatternFactory : IMessagePatternFactory<XmlMessagePattern>
     {
-        public XmlMessagePattern FromConjuncts(string[] conjuncts)
-            => new XmlMessagePattern(conjuncts);
+        public XmlMessagePattern FromConjuncts(string[] conjuncts, bool isSecondary=false)
+            => new XmlMessagePattern(isSecondary, conjuncts);
     }
 }
