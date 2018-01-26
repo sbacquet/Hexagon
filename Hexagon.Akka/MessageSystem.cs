@@ -92,7 +92,7 @@ namespace Hexagon.AkkaImpl
             }
         }
 
-        public async Task<M> SendMessageSync(M message, TimeSpan? timeout = null, System.Threading.CancellationToken? cancellationToken = null)
+        public async Task<M> SendMessageAndAwaitResponse(M message, TimeSpan? timeout = null, System.Threading.CancellationToken? cancellationToken = null)
         {
             var actorDirectory = new ActorDirectory<M, P>(ActorSystem);
             var actorPaths = await actorDirectory.GetMatchingActorPaths(message, PatternFactory);

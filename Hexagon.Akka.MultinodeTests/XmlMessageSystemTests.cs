@@ -112,7 +112,7 @@ namespace Hexagon.AkkaImpl.MultinodeTests
                             new XmlMessagePattern(@"/request"),
                             async (message, sender, self) =>
                             {
-                                XmlMessage answer = await _messageSystem.SendMessageSync(XmlMessage.FromString(@"<question>Why?</question>"));
+                                XmlMessage answer = await _messageSystem.SendMessageAndAwaitResponse(XmlMessage.FromString(@"<question>Why?</question>"));
                                 answer.Should().Match<XmlMessage>(mess => mess.Match(@"/answer[. = ""Because.""]"));
                                 sender.Tell(XmlMessage.FromString(@"<response>OK</response>"), self);
                             },
