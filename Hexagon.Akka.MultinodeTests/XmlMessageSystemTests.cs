@@ -46,6 +46,7 @@ namespace Hexagon.AkkaImpl.MultinodeTests
                     akka.remote.log-remote-lifecycle-events = off
                     akka.cluster.auto-down-unreachable-after = 0s
                     akka.cluster.pub-sub.max-delta-elements = 500
+                    akka.test.timefactor = 2
                 ")
                 .WithFallback(DistributedData.DefaultConfig())
                 .WithFallback(DistributedPubSub.DefaultConfig());
@@ -79,7 +80,7 @@ namespace Hexagon.AkkaImpl.MultinodeTests
             RunOn(() =>
             {
                 Cluster.Join(Node(to).Address);
-                _messageSystem = new XmlMessageSystem(this.Sys);
+                _messageSystem = new XmlMessageSystem(this.Sys, new NodeConfig(from.Name));
             }, from);
             EnterBarrier(from.Name + "-joined");
         }
@@ -136,7 +137,7 @@ namespace Hexagon.AkkaImpl.MultinodeTests
                 }, _second);
                 EnterBarrier("2-registered");
 
-                _messageSystem.Start();
+                _messageSystem.Start(5.0 * this.TestKitSettings.TestTimeFactor);
                 EnterBarrier("3-started");
 
                 RunOn(() =>

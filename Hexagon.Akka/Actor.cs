@@ -40,14 +40,14 @@ namespace Hexagon.AkkaImpl
             public readonly Predicate<M> Filter;
         }
 
-        public Actor(IEnumerable<ActionWithFilter> actions, IEnumerable<AsyncActionWithFilter> asyncActions, IMessageFactory<M> factory)
+        public Actor(IEnumerable<ActionWithFilter> actions, IEnumerable<AsyncActionWithFilter> asyncActions, IMessageFactory<M> factory, NodeConfig nodeConfig)
         {
             ReceiveAsync<RegisterToGlobalDirectory<P>>(mess =>
             {
                 var mediator = DistributedPubSub.Get(Context.System).Mediator;
                 mediator.Tell(new Put(Self));
 
-                var actorDirectory = new ActorDirectory<M, P>(Context.System);
+                var actorDirectory = new ActorDirectory<M, P>(Context.System, nodeConfig);
                 return actorDirectory.PublishPatterns(Self.Path.ToStringWithoutAddress(), mess.Patterns);
             });
 

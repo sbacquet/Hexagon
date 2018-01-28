@@ -31,6 +31,7 @@ namespace Hexagon.AkkaImpl.MultinodeTests
                 akka.actor.provider = ""Akka.Cluster.ClusterActorRefProvider, Akka.Cluster""
                 akka.loglevel = DEBUG
                 akka.log-dead-letters-during-shutdown = on
+                akka.test.timefactor = 2
             ").WithFallback(DistributedData.DefaultConfig());
 
             TestTransport = true;
@@ -63,7 +64,7 @@ namespace Hexagon.AkkaImpl.MultinodeTests
             {
                 Cluster.Join(Node(to).Address);
                 _replicator = DistributedData.Get(Sys).Replicator;
-                _actorDirectory = new ActorDirectory<XmlMessage, XmlMessagePattern>(Sys);
+                _actorDirectory = new ActorDirectory<XmlMessage, XmlMessagePattern>(Sys, new NodeConfig(from.Name));
             }, from);
             EnterBarrier(from.Name + "-joined");
         }
@@ -130,7 +131,7 @@ namespace Hexagon.AkkaImpl.MultinodeTests
                 }, _second);
 
                 EnterBarrier("2-registered");
-                System.Threading.Thread.Sleep(3000);
+                System.Threading.Thread.Sleep(TimeSpan.FromSeconds(5 * this.TestKitSettings.TestTimeFactor));
 
                 RunOn(() =>
                 {

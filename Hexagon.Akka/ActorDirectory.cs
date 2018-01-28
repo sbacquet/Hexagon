@@ -15,13 +15,20 @@ namespace Hexagon.AkkaImpl
     {
         readonly ActorSystem System;
         readonly ILoggingAdapter Logger;
+        readonly NodeConfig NodeConfig;
 
-        public ActorDirectory(ActorSystem actorSystem)
+        public ActorDirectory(ActorSystem actorSystem, NodeConfig nodeConfig)
         {
             System = actorSystem;
             Logger = Logging.GetLogger(System, this);
+            NodeConfig = nodeConfig;
         }
 
+        public class ActorProps
+        {
+            public P[] Patterns;
+            public int MistrustFactor = 1;
+        }
         public async Task<string[]> GetMatchingActorPaths(M message, IMessagePatternFactory<P> messagePatternFactory)
         {
             var replicator = DistributedData.Get(System).Replicator;
@@ -31,13 +38,13 @@ namespace Hexagon.AkkaImpl
             var readConsistency = ReadLocal.Instance; //new ReadAll(TimeSpan.FromSeconds(5));
             foreach (string path in actorPaths)
             {
-                var setKey = new GSetKey<(GSet<string> Conjuncts, bool IsSecondary)>(path);
+                //var setKey = new GSetKey<(GSet<string> Conjuncts, bool IsSecondary)>(path);
+                var setKey = new LWWRegisterKey<ActorProps>(path);
                 var getResponse = await replicator.Ask<IGetResponse>(Dsl.Get(setKey, readConsistency));
                 if (getResponse.IsSuccessful)
                 {
-                    var conjunctSets = getResponse.Get(setKey);
-                    var matchingPatterns = conjunctSets
-                        .Select(conjunctSet => messagePatternFactory.FromConjuncts(conjunctSet.Conjuncts.ToArray(), conjunctSet.IsSecondary))
+                    var actorProps = getResponse.Get(setKey);
+                    var matchingPatterns = actorProps.Value.Patterns
                         .Where(pattern => pattern.Match(message));
                     int matchingPatternsCount = matchingPatterns.Count();
                     if (matchingPatternsCount > 0)
@@ -60,12 +67,21 @@ namespace Hexagon.AkkaImpl
                 throw new Exception("cannot distribute empty pattern list");
 
             var cluster = Cluster.Get(System);
-            var set = patterns.Aggregate(GSet<(GSet<string> Conjuncts, bool IsSecondary)>.Empty, (s, pattern) => s.Add((GSet.Create(pattern.Conjuncts), pattern.IsSecondary)));
+            int mistrustFactor = NodeConfig.GetMistrustFactor(actorPath);
+            var register = 
+                new LWWRegister<ActorProps>(
+                    cluster.SelfUniqueAddress, 
+                    new ActorProps()
+                    {
+                        Patterns = patterns.ToArray(),
+                        MistrustFactor = mistrustFactor
+                    }
+                );
 
             var replicator = DistributedData.Get(System).Replicator;
-            var setKey = new GSetKey<(GSet<string> Conjuncts, bool IsSecondary)>(actorPath);
+            var setKey = new LWWRegisterKey<ActorProps>(actorPath);
             var writeConsistency = WriteLocal.Instance; //new WriteAll(TimeSpan.FromSeconds(5));
-            var updateResponse = await replicator.Ask<IUpdateResponse>(Dsl.Update(setKey, set, writeConsistency));
+            var updateResponse = await replicator.Ask<IUpdateResponse>(Dsl.Update(setKey, register, writeConsistency));
             if (!updateResponse.IsSuccessful)
             {
                 throw new Exception($"cannot update patterns for actor path {actorPath}");

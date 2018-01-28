@@ -9,7 +9,7 @@ namespace Hexagon
     public interface IMessageSystem<M, P>
     {
         void Register(P pattern, Action<M, ICanReceiveMessage<M>, ICanReceiveMessage<M>> action, string key = "default");
-        void Start();
+        void Start(double synchronizationWindowInSeconds = 5.0);
         void SendMessage(M message, ICanReceiveMessage<M> sender);
     }
 }

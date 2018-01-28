@@ -31,23 +31,28 @@ namespace Hexagon.AkkaImpl
         readonly IMessageFactory<M> MessageFactory;
         readonly IMessagePatternFactory<P> PatternFactory;
         readonly ILoggingAdapter Logger;
+        readonly NodeConfig NodeConfig;
+        readonly ActorDirectory<M,P> ActorDirectory;
 
         public MessageSystem(
             string systemName, 
             Akka.Configuration.Config config, 
             IMessageFactory<M> messageFactory, 
-            IMessagePatternFactory<P> patternFactory)
+            IMessagePatternFactory<P> patternFactory,
+            NodeConfig nodeConfig)
             : this(
                   null == config ? ActorSystem.Create(systemName) : ActorSystem.Create(systemName, config), 
                   messageFactory, 
-                  patternFactory)
+                  patternFactory,
+                  nodeConfig)
         {
         }
 
         public MessageSystem(
             ActorSystem system, 
             IMessageFactory<M> factory,
-            IMessagePatternFactory<P> patternFactory)
+            IMessagePatternFactory<P> patternFactory,
+            NodeConfig nodeConfig)
         {
             ActorSystem = system;
             Registry = new List<MessageRegistryEntry<M, P>>();
@@ -57,6 +62,8 @@ namespace Hexagon.AkkaImpl
             MessageFactory = factory;
             PatternFactory = patternFactory;
             Logger = Logging.GetLogger(system, this);
+            NodeConfig = nodeConfig;
+            ActorDirectory = new ActorDirectory<M, P>(system, nodeConfig);
         }
 
         public void Register(P pattern, Action<M, ICanReceiveMessage<M>, ICanReceiveMessage<M>> action, string key)
@@ -79,8 +86,7 @@ namespace Hexagon.AkkaImpl
 
         public async void SendMessage(M message, ICanReceiveMessage<M> sender)
         {
-            var actorDirectory = new ActorDirectory<M, P>(ActorSystem);
-            var actorPaths = await actorDirectory.GetMatchingActorPaths(message, PatternFactory);
+            var actorPaths = await ActorDirectory.GetMatchingActorPaths(message, PatternFactory);
             if (!actorPaths.Any())
             {
                 Logger.Error(@"Cannot find any receiver of message {0}", message);
@@ -104,8 +110,7 @@ namespace Hexagon.AkkaImpl
 
         public async Task<M> SendMessageAndAwaitResponse(M message, TimeSpan? timeout = null, System.Threading.CancellationToken? cancellationToken = null)
         {
-            var actorDirectory = new ActorDirectory<M, P>(ActorSystem);
-            var actorPaths = await actorDirectory.GetMatchingActorPaths(message, PatternFactory);
+            var actorPaths = await ActorDirectory.GetMatchingActorPaths(message, PatternFactory);
             if (!actorPaths.Any())
             {
                 Logger.Error(@"Cannot find any receiver of message {0}", message);
@@ -127,12 +132,12 @@ namespace Hexagon.AkkaImpl
             return await mainReceiver.Ask(message, MessageFactory, timeout, cancellationToken);
         }
 
-        public void Start()
+        public void Start(double synchronizationWindowInSeconds = 5.0)
         {
             CreateActors();
             Registry.Clear();
             // Synchronize other actors
-            System.Threading.Thread.Sleep(3000);
+            System.Threading.Thread.Sleep(TimeSpan.FromSeconds(synchronizationWindowInSeconds));
         }
 
         static Func<MessageRegistryEntry<M, P>, Predicate<M>> FilterEntry => entry => message => entry.Pattern.Match(message);
@@ -161,7 +166,7 @@ namespace Hexagon.AkkaImpl
                             entry.AsyncAction,
                             filter(entry)));
 
-                actorProps = Props.Create(() => new Actor<M,P>(actions, asyncActions, MessageFactory));
+                actorProps = Props.Create(() => new Actor<M,P>(actions, asyncActions, MessageFactory, NodeConfig));
                 var actor = ActorSystem.ActorOf(actorProps, actorName);
                 actor.Tell(new RegisterToGlobalDirectory<P>(group.Select(entry => entry.Pattern)));
             }
@@ -170,21 +175,23 @@ namespace Hexagon.AkkaImpl
 
     public class XmlMessageSystem : MessageSystem<XmlMessage, XmlMessagePattern>
     {
-        public XmlMessageSystem(Akka.Configuration.Config config) : 
+        public XmlMessageSystem(Akka.Configuration.Config config, NodeConfig nodeConfig) : 
             base(
                 "Finastra microservices actor system using XML messages",
                 config,
                 new XmlMessageFactory(),
-                new XmlMessagePatternFactory()
+                new XmlMessagePatternFactory(),
+                nodeConfig
                 )
         {
         }
 
-        public XmlMessageSystem(ActorSystem system) :
+        public XmlMessageSystem(ActorSystem system, NodeConfig nodeConfig) :
             base(
                 system,
                 new XmlMessageFactory(),
-                new XmlMessagePatternFactory()
+                new XmlMessagePatternFactory(),
+                nodeConfig
                 )
         {
         }
@@ -192,21 +199,23 @@ namespace Hexagon.AkkaImpl
 
     public class JsonMessageSystem : MessageSystem<JsonMessage, JsonMessagePattern>
     {
-        public JsonMessageSystem(Akka.Configuration.Config config) : 
+        public JsonMessageSystem(Akka.Configuration.Config config, NodeConfig nodeConfig) : 
             base(
                 "Finastra microservices actor system using JSON messages",
                 config,
                 new JsonMessageFactory(),
-                new JsonMessagePatternFactory()
+                new JsonMessagePatternFactory(),
+                nodeConfig
                 )
         {
         }
 
-        public JsonMessageSystem(ActorSystem system) :
+        public JsonMessageSystem(ActorSystem system, NodeConfig nodeConfig) :
             base(
                 system,
                 new JsonMessageFactory(),
-                new JsonMessagePatternFactory()
+                new JsonMessagePatternFactory(),
+                nodeConfig
                 )
         {
         }
