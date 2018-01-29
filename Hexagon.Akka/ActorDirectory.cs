@@ -24,17 +24,24 @@ namespace Hexagon.AkkaImpl
             NodeConfig = nodeConfig;
         }
 
-        public class ActorProps
+        public struct ActorProps
         {
             public P[] Patterns;
-            public int MistrustFactor = 1;
+            public int MistrustFactor;
         }
-        public async Task<string[]> GetMatchingActorPaths(M message, IMessagePatternFactory<P> messagePatternFactory)
+        public struct MatchingActor
+        {
+            public string Path;
+            public int MatchingScore;
+            public int MistrustFactor;
+            public bool IsSecondary;
+        }
+        public async Task<IEnumerable<MatchingActor>> GetMatchingActors(M message, IMessagePatternFactory<P> messagePatternFactory)
         {
             var replicator = DistributedData.Get(System).Replicator;
             var keysResponse = await replicator.Ask<GetKeysIdsResult>(Dsl.GetKeyIds);
             var actorPaths = keysResponse.Keys;
-            var actorPathsWithMatchingScore = new List<(string Path, int MatchingScore)>();
+            var matchingActors = new List<MatchingActor>();
             var readConsistency = ReadLocal.Instance; //new ReadAll(TimeSpan.FromSeconds(5));
             foreach (string path in actorPaths)
             {
@@ -43,9 +50,8 @@ namespace Hexagon.AkkaImpl
                 var getResponse = await replicator.Ask<IGetResponse>(Dsl.Get(setKey, readConsistency));
                 if (getResponse.IsSuccessful)
                 {
-                    var actorProps = getResponse.Get(setKey);
-                    var matchingPatterns = actorProps.Value.Patterns
-                        .Where(pattern => pattern.Match(message));
+                    var actorProps = getResponse.Get(setKey).Value;
+                    var matchingPatterns = actorProps.Patterns.Where(pattern => pattern.Match(message));
                     int matchingPatternsCount = matchingPatterns.Count();
                     if (matchingPatternsCount > 0)
                     {
@@ -54,11 +60,18 @@ namespace Hexagon.AkkaImpl
                             Logger.Warning("For actor {0}, found {1} handlers matching message {2}", path, matchingPatternsCount, message);
                         }
                         var matchingPattern = matchingPatterns.First();
-                        actorPathsWithMatchingScore.Add((path, matchingPattern.IsSecondary ? 0 : matchingPattern.Conjuncts.Length));
+                        matchingActors.Add(
+                            new MatchingActor
+                            {
+                                Path = path,
+                                IsSecondary = matchingPattern.IsSecondary,
+                                MatchingScore = matchingPattern.Conjuncts.Length,
+                                MistrustFactor = actorProps.MistrustFactor
+                            });
                     }
                 }
             }
-            return actorPathsWithMatchingScore.OrderByDescending(t => t.MatchingScore).Select(t => t.Path).ToArray();
+            return matchingActors;
         }
 
         public async Task PublishPatterns(string actorPath, IEnumerable<P> patterns)

@@ -137,7 +137,7 @@ namespace Hexagon.AkkaImpl.MultinodeTests
                 {
                     var patternFactory = new XmlMessagePatternFactory();
                     string xml = @"<root><value1>1</value1><value2 attr=""b"">2</value2><value3>3</value3></root>";
-                    var actorPaths = _actorDirectory.GetMatchingActorPaths(XmlMessage.FromString(xml), patternFactory).Result;
+                    var actorPaths = _actorDirectory.GetMatchingActors(XmlMessage.FromString(xml), patternFactory).Result.Select(ma => ma.Path);
                     actorPaths.Should().BeEquivalentTo("/user/test1", "/user/test2");
                 }, _first, _second, _third);
 

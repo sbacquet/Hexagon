@@ -86,37 +86,61 @@ namespace Hexagon.AkkaImpl
 
         public async void SendMessage(M message, ICanReceiveMessage<M> sender)
         {
-            var actorPaths = await ActorDirectory.GetMatchingActorPaths(message, PatternFactory);
+            var actorPaths = await ActorDirectory.GetMatchingActors(message, PatternFactory);
             if (!actorPaths.Any())
             {
                 Logger.Error(@"Cannot find any receiver of message {0}", message);
                 return;
             }
-            string mainReceiverPath = actorPaths.First();
-            Logger.Debug(@"Main receiver of message {0} : {1}", message, mainReceiverPath);
-            var mainReceiver = new ActorPathMessageReceiver<M>(mainReceiverPath, Mediator);
-            mainReceiver.Tell(message, sender);
-            var secondaryReceiverPaths = actorPaths.Where((_, i) => i > 0);
+            var primaryReceivers = actorPaths.Where(ma => !ma.IsSecondary);
+            if (primaryReceivers.Any())
+            {
+                if (Logger.IsDebugEnabled)
+                    Logger.Debug(@"Primary receiver(s) of message {0} : {1}", message, string.Join(", ", primaryReceivers.Select(ma => ma.Path)));
+                string mainReceiverPath = GetMainReceiverPath(primaryReceivers);
+                var mainReceiver = new ActorPathMessageReceiver<M>(mainReceiverPath, Mediator);
+                mainReceiver.Tell(message, sender);
+            }
+            else
+            {
+                Logger.Warning(@"No primary receiver found for message {0}", message);
+            }
+            var secondaryReceiverPaths = actorPaths.Where(ma => ma.IsSecondary).Select(ma => ma.Path);
             if (secondaryReceiverPaths.Any())
             {
-                Logger.Debug(@"Secondary receivers of message {0} : {1}", message, string.Join(", ", secondaryReceiverPaths));
+                if (Logger.IsDebugEnabled)
+                    Logger.Debug(@"Secondary receiver(s) of message {0} : {1}", message, string.Join(", ", secondaryReceiverPaths));
                 foreach (var secondaryActorPath in secondaryReceiverPaths)
                 {
                     var secondaryReceiver = new ActorPathMessageReceiver<M>(secondaryActorPath, Mediator);
-                    secondaryReceiver.Tell(message, null);
+                    secondaryReceiver.Tell(message, sender);
                 }
             }
         }
 
+        string GetMainReceiverPath(IEnumerable<ActorDirectory<M,P>.MatchingActor> primaryActors)
+        {
+            // Look for the primary actors with highest matching score
+            var primaryActorsOrderdedByMatchingScore = primaryActors.OrderByDescending(ma => ma.MatchingScore);
+            int highestMatchingScore = primaryActorsOrderdedByMatchingScore.First().MatchingScore;
+            var mainPrimaryActors = primaryActorsOrderdedByMatchingScore.TakeWhile(ma => ma.MatchingScore == highestMatchingScore);
+            if (mainPrimaryActors.Count() == 1)
+                // If only one, return it
+                return mainPrimaryActors.First().Path;
+            // If several primary actors have the same highest score, randomly pick one depending on the mistrust factor
+            var mistrusts = mainPrimaryActors.Select(ma => ma.MistrustFactor).ToArray();
+            return mainPrimaryActors.ElementAt(MistrustBasedRandomGenerator.SelectIndex(mistrusts)).Path;
+        }
+
         public async Task<M> SendMessageAndAwaitResponse(M message, TimeSpan? timeout = null, System.Threading.CancellationToken? cancellationToken = null)
         {
-            var actorPaths = await ActorDirectory.GetMatchingActorPaths(message, PatternFactory);
+            var actorPaths = await ActorDirectory.GetMatchingActors(message, PatternFactory);
             if (!actorPaths.Any())
             {
                 Logger.Error(@"Cannot find any receiver of message {0}", message);
                 return default(M);
             }
-            var secondaryReceiverPaths = actorPaths.Where((_, i) => i > 0);
+            var secondaryReceiverPaths = actorPaths.Where(ma => ma.IsSecondary).Select(ma => ma.Path);
             if (secondaryReceiverPaths.Any())
             {
                 Logger.Debug(@"Secondary receivers of message {0} : {1}", message, string.Join(", ", secondaryReceiverPaths));
@@ -126,10 +150,16 @@ namespace Hexagon.AkkaImpl
                     secondaryReceiver.Tell(message, null);
                 }
             }
-            string mainReceiverPath = actorPaths.First();
-            Logger.Debug(@"Main receiver of message {0} : {1}", message, mainReceiverPath);
-            var mainReceiver = new ActorPathMessageReceiver<M>(mainReceiverPath, Mediator);
-            return await mainReceiver.Ask(message, MessageFactory, timeout, cancellationToken);
+            var primaryReceivers = actorPaths.Where(ma => !ma.IsSecondary);
+            if (primaryReceivers.Any())
+            {
+                if (Logger.IsDebugEnabled)
+                    Logger.Debug(@"Primary receiver(s) of message {0} : {1}", message, string.Join(", ", primaryReceivers.Select(ma => ma.Path)));
+                string mainReceiverPath = GetMainReceiverPath(primaryReceivers);
+                var mainReceiver = new ActorPathMessageReceiver<M>(mainReceiverPath, Mediator);
+                return await mainReceiver.Ask(message, MessageFactory, timeout, cancellationToken);
+            }
+            return default(M);
         }
 
         public void Start(double synchronizationWindowInSeconds = 5.0)
