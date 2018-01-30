@@ -31,7 +31,7 @@ namespace Hexagon.AkkaImpl.MultinodeTests
                 akka.actor.provider = ""Akka.Cluster.ClusterActorRefProvider, Akka.Cluster""
                 akka.loglevel = DEBUG
                 akka.log-dead-letters-during-shutdown = on
-                akka.test.timefactor = 2
+                akka.test.timefactor = 1
             ").WithFallback(DistributedData.DefaultConfig());
 
             TestTransport = true;

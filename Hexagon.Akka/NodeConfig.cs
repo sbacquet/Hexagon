@@ -19,10 +19,14 @@ namespace Hexagon.AkkaImpl
         }
         Dictionary<string, ActorProps> ActorsProps = new Dictionary<string, ActorProps>();
         public readonly string NodeId;
+        public readonly double GossipTimeFrameInSeconds;
+        public readonly int GossipSynchroAttemptCount;
 
-        public NodeConfig(string nodeId)
+        public NodeConfig(string nodeId, double gossipTimeFrameInSeconds = 5, int gossipSynchroAttemptCount = 3)
         {
             NodeId = nodeId;
+            GossipTimeFrameInSeconds = gossipTimeFrameInSeconds;
+            GossipSynchroAttemptCount = gossipSynchroAttemptCount;
         }
 
         public static NodeConfig FromFile(string filePath)

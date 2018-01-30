@@ -27,5 +27,12 @@ namespace Hexagon
             var navigator = message.AsPathNavigable().CreateNavigator();
             return Conjuncts.All(path => navigator.SelectSingleNode(path) != null);
         }
+
+        public override string ToString()
+        {
+            string conjunctsString = string.Join(" and ", Conjuncts);
+            string secondaryString = IsSecondary ? " (secondary)" : "";
+            return conjunctsString + secondaryString;
+        }
     }
 }

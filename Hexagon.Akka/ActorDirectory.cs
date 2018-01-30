@@ -13,14 +13,14 @@ namespace Hexagon.AkkaImpl
     public class ActorDirectory<M, P> 
         where P : IMessagePattern<M>
     {
-        readonly ActorSystem System;
+        readonly ActorSystem ActorSystem;
         readonly ILoggingAdapter Logger;
         readonly NodeConfig NodeConfig;
 
         public ActorDirectory(ActorSystem actorSystem, NodeConfig nodeConfig)
         {
-            System = actorSystem;
-            Logger = Logging.GetLogger(System, this);
+            ActorSystem = actorSystem;
+            Logger = Logging.GetLogger(ActorSystem, this);
             NodeConfig = nodeConfig;
         }
 
@@ -38,37 +38,52 @@ namespace Hexagon.AkkaImpl
         }
         public async Task<IEnumerable<MatchingActor>> GetMatchingActors(M message, IMessagePatternFactory<P> messagePatternFactory)
         {
-            var replicator = DistributedData.Get(System).Replicator;
-            var keysResponse = await replicator.Ask<GetKeysIdsResult>(Dsl.GetKeyIds);
-            var actorPaths = keysResponse.Keys;
+            var replicator = DistributedData.Get(ActorSystem).Replicator;
+            var setKey = new LWWDictionaryKey<string, ActorProps>("ActorDirectory");
+            var getResponse = await replicator.Ask<IGetResponse>(Dsl.Get(setKey, ReadLocal.Instance));
             var matchingActors = new List<MatchingActor>();
-            var readConsistency = ReadLocal.Instance; //new ReadAll(TimeSpan.FromSeconds(5));
-            foreach (string path in actorPaths)
+            if (!getResponse.IsSuccessful)
             {
-                //var setKey = new GSetKey<(GSet<string> Conjuncts, bool IsSecondary)>(path);
-                var setKey = new LWWRegisterKey<ActorProps>(path);
-                var getResponse = await replicator.Ask<IGetResponse>(Dsl.Get(setKey, readConsistency));
-                if (getResponse.IsSuccessful)
+                int attemptCount = NodeConfig.GossipSynchroAttemptCount;
+                for (int attempt = 1; attempt <= attemptCount; ++attempt)
                 {
-                    var actorProps = getResponse.Get(setKey).Value;
-                    var matchingPatterns = actorProps.Patterns.Where(pattern => pattern.Match(message));
-                    int matchingPatternsCount = matchingPatterns.Count();
-                    if (matchingPatternsCount > 0)
+                    Logger.Warning("Could not read actor directory locally, trying to get it from all cluster nodes ({0}/{1})...", attempt, attemptCount);
+                    System.Threading.Thread.Sleep(TimeSpan.FromSeconds(NodeConfig.GossipTimeFrameInSeconds));
+                    getResponse = await replicator.Ask<IGetResponse>(Dsl.Get(setKey, new ReadAll(TimeSpan.FromSeconds(5))));
+                    if (getResponse.IsSuccessful)
                     {
-                        if (matchingPatternsCount > 1)
-                        {
-                            Logger.Warning("For actor {0}, found {1} handlers matching message {2}", path, matchingPatternsCount, message);
-                        }
-                        var matchingPattern = matchingPatterns.First();
-                        matchingActors.Add(
-                            new MatchingActor
-                            {
-                                Path = path,
-                                IsSecondary = matchingPattern.IsSecondary,
-                                MatchingScore = matchingPattern.Conjuncts.Length,
-                                MistrustFactor = actorProps.MistrustFactor
-                            });
+                        Logger.Info("Actor directory successfully read from cluster nodes after {0} attempt(s)", attempt);
+                        break;
                     }
+                    if (attempt == attemptCount)
+                    {
+                        Logger.Error("Could not read actor directory from cluster nodes after {0} attempts, giving up", attemptCount);
+                        return matchingActors;
+                    }
+                }
+            }
+            var actors = getResponse.Get(setKey);
+            foreach (var actor in actors)
+            {
+                var path = actor.Key;
+                var actorProps = actor.Value;
+                var matchingPatterns = actorProps.Patterns.Where(pattern => pattern.Match(message));
+                int matchingPatternsCount = matchingPatterns.Count();
+                if (matchingPatternsCount > 0)
+                {
+                    var matchingPattern = matchingPatterns.First();
+                    if (matchingPatternsCount > 1)
+                    {
+                        Logger.Warning("For actor {0}, found {1} patterns matching message {2}. Taking first one = {3}", path, matchingPatternsCount, message, matchingPattern);
+                    }
+                    matchingActors.Add(
+                        new MatchingActor
+                        {
+                            Path = path,
+                            IsSecondary = matchingPattern.IsSecondary,
+                            MatchingScore = matchingPattern.Conjuncts.Length,
+                            MistrustFactor = actorProps.MistrustFactor
+                        });
                 }
             }
             return matchingActors;
@@ -79,22 +94,22 @@ namespace Hexagon.AkkaImpl
             if (!patterns.Any())
                 throw new Exception("cannot distribute empty pattern list");
 
-            var cluster = Cluster.Get(System);
+            var cluster = Cluster.Get(ActorSystem);
             int mistrustFactor = NodeConfig.GetMistrustFactor(actorPath);
-            var register = 
-                new LWWRegister<ActorProps>(
-                    cluster.SelfUniqueAddress, 
+            var actorDirectory =
+                LWWDictionary.Create<string, ActorProps>(
+                    cluster.SelfUniqueAddress,
+                    actorPath,
                     new ActorProps()
                     {
                         Patterns = patterns.ToArray(),
                         MistrustFactor = mistrustFactor
-                    }
-                );
+                    });
 
-            var replicator = DistributedData.Get(System).Replicator;
-            var setKey = new LWWRegisterKey<ActorProps>(actorPath);
+            var replicator = DistributedData.Get(ActorSystem).Replicator;
+            var setKey = new LWWDictionaryKey<string, ActorProps>("ActorDirectory");
             var writeConsistency = WriteLocal.Instance; //new WriteAll(TimeSpan.FromSeconds(5));
-            var updateResponse = await replicator.Ask<IUpdateResponse>(Dsl.Update(setKey, register, writeConsistency));
+            var updateResponse = await replicator.Ask<IUpdateResponse>(Dsl.Update(setKey, actorDirectory, writeConsistency));
             if (!updateResponse.IsSuccessful)
             {
                 throw new Exception($"cannot update patterns for actor path {actorPath}");

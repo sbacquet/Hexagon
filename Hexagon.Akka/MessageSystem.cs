@@ -162,12 +162,12 @@ namespace Hexagon.AkkaImpl
             return default(M);
         }
 
-        public void Start(double synchronizationWindowInSeconds = 5.0)
+        public void Start()
         {
             CreateActors();
             Registry.Clear();
             // Synchronize other actors
-            System.Threading.Thread.Sleep(TimeSpan.FromSeconds(synchronizationWindowInSeconds));
+            System.Threading.Thread.Sleep(TimeSpan.FromSeconds(NodeConfig.GossipTimeFrameInSeconds));
         }
 
         static Func<MessageRegistryEntry<M, P>, Predicate<M>> FilterEntry => entry => message => entry.Pattern.Match(message);
