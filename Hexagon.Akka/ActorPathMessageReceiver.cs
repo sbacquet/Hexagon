@@ -8,7 +8,7 @@ namespace Hexagon.AkkaImpl
     public class ActorPathMessageReceiver<M> : ICanReceiveMessage<M>
         where M : IMessage
     {
-        public string ActorPath { get; private set; }
+        public readonly string ActorPath;
         IActorRef Mediator { get; }
         public ActorPathMessageReceiver(string actorPath, IActorRef mediator)
         {

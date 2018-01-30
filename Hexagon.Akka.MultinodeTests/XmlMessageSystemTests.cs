@@ -12,12 +12,8 @@ using System.Linq;
 using Akka.Actor;
 using Akka.Cluster.TestKit;
 using Akka.Cluster.Tools.PublishSubscribe;
-using Akka.Cluster.Tools.PublishSubscribe.Internal;
 using Akka.Configuration;
-using Akka.Event;
 using Akka.Remote.TestKit;
-using Akka.TestKit;
-using Xunit;
 using FluentAssertions;
 using Akka.DistributedData;
 
@@ -80,7 +76,8 @@ namespace Hexagon.AkkaImpl.MultinodeTests
             RunOn(() =>
             {
                 Cluster.Join(Node(to).Address);
-                _messageSystem = new XmlMessageSystem(this.Sys, new NodeConfig(from.Name));
+                var nodeConfig = new NodeConfig(from.Name);
+                _messageSystem = new XmlMessageSystem(this.Sys, nodeConfig);
             }, from);
             EnterBarrier(from.Name + "-joined");
         }
@@ -110,30 +107,29 @@ namespace Hexagon.AkkaImpl.MultinodeTests
                 RunOn(() =>
                 {
                     _messageSystem.RegisterAsync(
-                            new XmlMessagePattern($@"/request[@routeto = ""{_first.Name}""]"),
-                            async (message, sender, self) =>
-                            {
-                                XmlMessage answer = await _messageSystem.SendMessageAndAwaitResponse(XmlMessage.FromString(@"<question>Why?</question>"));
-                                answer.Should().Match<XmlMessage>(mess => mess.Match(@"/answer[. = ""Because.""]"));
-                                sender.Tell(XmlMessage.FromString(@"<response>OK</response>"), self);
-                            },
-                            _first.Name);
+                        new XmlMessagePattern($@"/request[@routeto = ""{_first.Name}""]"),
+                        async (message, sender, self) =>
+                        {
+                            XmlMessage answer = await _messageSystem.SendMessageAndAwaitResponse(XmlMessage.FromString(@"<question>Why?</question>"), self);
+                            answer.Should().Match<XmlMessage>(mess => mess.Match(@"/answer[. = ""Because.""]"));
+                            TestActor.Tell("OK");
+                        },
+                        _first.Name);
                 }, _first);
 
                 RunOn(() =>
                 {
                     _messageSystem.Register(
-                            new XmlMessagePattern(true, $@"/request"),
-                            (message, sender, self) =>
-                            {
-                                sender.Tell(XmlMessage.FromString(@"<response>OK2</response>"), self);
-                            },
-                            _second.Name);
-                    // Actor that reacts to no XmlMessage
+                        new XmlMessagePattern(true, "/request"),
+                        (message, sender, self) =>
+                        {
+                            TestActor.Tell("OK");
+                        },
+                        _second.Name);
                     _messageSystem.Register(
-                            new XmlMessagePattern(@"/question[. = ""Why?""]"),
-                            (message, sender, self) => sender.Tell(XmlMessage.FromString(@"<answer>Because.</answer>"), self),
-                            _second.Name);
+                        new XmlMessagePattern(@"/question[. = ""Why?""]"),
+                        (message, sender, self) => sender.Tell(XmlMessage.FromString(@"<answer>Because.</answer>"), self),
+                        _second.Name);
                 }, _second);
 
                 _messageSystem.Start();
@@ -142,12 +138,10 @@ namespace Hexagon.AkkaImpl.MultinodeTests
                 RunOn(() =>
                 {
                     string xml = @"<request routeto=""first"">GO</request>";
-                    _messageSystem.SendMessage(XmlMessage.FromString(xml), new ActorRefMessageReceiver<XmlMessage>(TestActor));
-                    var message1 = ExpectMsg<BytesMessage>();
-                    var message2 = ExpectMsg<BytesMessage>();
-                    XmlMessage.FromBytes(message1.Bytes).Match(@"/response").Should().BeTrue();
-                    XmlMessage.FromBytes(message2.Bytes).Match(@"/response").Should().BeTrue();
+                    _messageSystem.SendMessage(XmlMessage.FromString(xml), null);
                 }, _third);
+                RunOn(() => ExpectMsg<string>("OK"), _first);
+                RunOn(() => ExpectMsg<string>("OK"), _second);
 
                 EnterBarrier("3-done");
             });

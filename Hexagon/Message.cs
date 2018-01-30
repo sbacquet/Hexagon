@@ -1,9 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
-using System.Xml.XPath;
 
 namespace Hexagon
 {
@@ -38,18 +34,5 @@ namespace Hexagon
     public interface IMessagePatternFactory<P>
     {
         P FromConjuncts(string[] conjuncts, bool isSecondary=false);
-    }
-
-    public class MessageProps
-    {
-        public Guid CorrelationId { get; private set; }
-
-        public static MessageProps New(MessageProps origin = null)
-        {
-            return new MessageProps
-            {
-                CorrelationId = origin == null ? Guid.NewGuid() : origin.CorrelationId
-            };
-        }
     }
 }

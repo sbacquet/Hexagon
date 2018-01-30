@@ -46,6 +46,7 @@ namespace Hexagon.AkkaImpl.MultinodeTests
         private readonly RoleName _third;
         IActorRef _replicator;
         ActorDirectory<XmlMessage, XmlMessagePattern> _actorDirectory;
+        NodeConfig _nodeConfig;
 
         public ActorDirectoryTests() : this(new ActorDirectoryTestsConfig())
         {
@@ -64,7 +65,8 @@ namespace Hexagon.AkkaImpl.MultinodeTests
             {
                 Cluster.Join(Node(to).Address);
                 _replicator = DistributedData.Get(Sys).Replicator;
-                _actorDirectory = new ActorDirectory<XmlMessage, XmlMessagePattern>(Sys, new NodeConfig(from.Name));
+                _nodeConfig = new NodeConfig(from.Name);
+                _actorDirectory = new ActorDirectory<XmlMessage, XmlMessagePattern>(Sys, _nodeConfig);
             }, from);
             EnterBarrier(from.Name + "-joined");
         }
@@ -131,7 +133,7 @@ namespace Hexagon.AkkaImpl.MultinodeTests
                 }, _second);
 
                 EnterBarrier("2-registered");
-                System.Threading.Thread.Sleep(TimeSpan.FromSeconds(5 * this.TestKitSettings.TestTimeFactor));
+                System.Threading.Thread.Sleep(TimeSpan.FromSeconds(_nodeConfig.GossipTimeFrameInSeconds));
 
                 RunOn(() =>
                 {

@@ -86,6 +86,9 @@ namespace Hexagon.AkkaImpl
 
         public async void SendMessage(M message, ICanReceiveMessage<M> sender)
         {
+            if (sender != null && !(sender is ActorRefMessageReceiver<M>))
+                throw new ArgumentException("the sender must be a ActorRefMessageReceiver", "sender");
+
             var actorPaths = await ActorDirectory.GetMatchingActors(message, PatternFactory);
             if (!actorPaths.Any())
             {
@@ -98,6 +101,8 @@ namespace Hexagon.AkkaImpl
                 if (Logger.IsDebugEnabled)
                     Logger.Debug(@"Primary receiver(s) of message {0} : {1}", message, string.Join(", ", primaryReceivers.Select(ma => ma.Path)));
                 string mainReceiverPath = GetMainReceiverPath(primaryReceivers);
+                if (Logger.IsDebugEnabled)
+                    Logger.Debug(@"Selected primary receiver of message {0} : {1}", message, mainReceiverPath);
                 var mainReceiver = new ActorPathMessageReceiver<M>(mainReceiverPath, Mediator);
                 mainReceiver.Tell(message, sender);
             }
@@ -110,30 +115,48 @@ namespace Hexagon.AkkaImpl
             {
                 if (Logger.IsDebugEnabled)
                     Logger.Debug(@"Secondary receiver(s) of message {0} : {1}", message, string.Join(", ", secondaryReceiverPaths));
+                var readonlySender = sender == null ? null : new ReadOnlyActorRefMessageReceiver<M>(sender as ActorRefMessageReceiver<M>);
                 foreach (var secondaryActorPath in secondaryReceiverPaths)
                 {
                     var secondaryReceiver = new ActorPathMessageReceiver<M>(secondaryActorPath, Mediator);
-                    secondaryReceiver.Tell(message, sender);
+                    secondaryReceiver.Tell(message, readonlySender);
                 }
             }
         }
 
         string GetMainReceiverPath(IEnumerable<ActorDirectory<M,P>.MatchingActor> primaryActors)
         {
+            System.Diagnostics.Debug.Assert(primaryActors.All(actor => actor.IsSecondary == false));
+
             // Look for the primary actors with highest matching score
             var primaryActorsOrderdedByMatchingScore = primaryActors.OrderByDescending(ma => ma.MatchingScore);
             int highestMatchingScore = primaryActorsOrderdedByMatchingScore.First().MatchingScore;
             var mainPrimaryActors = primaryActorsOrderdedByMatchingScore.TakeWhile(ma => ma.MatchingScore == highestMatchingScore);
             if (mainPrimaryActors.Count() == 1)
+            {
                 // If only one, return it
-                return mainPrimaryActors.First().Path;
-            // If several primary actors have the same highest score, randomly pick one depending on the mistrust factor
-            var mistrusts = mainPrimaryActors.Select(ma => ma.MistrustFactor).ToArray();
-            return mainPrimaryActors.ElementAt(MistrustBasedRandomGenerator.SelectIndex(mistrusts)).Path;
+                var selectedActor = mainPrimaryActors.First();
+                if (Logger.IsDebugEnabled && primaryActors.Count() > 1)
+                    Logger.Debug($"Primary actor {selectedActor.Path} selected by highest matching score {highestMatchingScore}");
+                return selectedActor.Path;
+            }
+            else
+            {
+                Logger.Warning($"Several actors with same highest matching score {highestMatchingScore}, randomly picking one based on actor mistrust factors...");
+                // If several primary actors have the same highest score, randomly pick one depending on the mistrust factor
+                var mistrusts = mainPrimaryActors.Select(ma => ma.MistrustFactor).ToArray();
+                var selectedActor = mainPrimaryActors.ElementAt(MistrustBasedRandomGenerator.SelectIndex(mistrusts));
+                if (Logger.IsDebugEnabled)
+                    Logger.Debug($"Primary actor {selectedActor.Path} randomly selected (mistrust factor : {selectedActor.MistrustFactor})");
+                return selectedActor.Path;
+            }
         }
 
-        public async Task<M> SendMessageAndAwaitResponse(M message, TimeSpan? timeout = null, System.Threading.CancellationToken? cancellationToken = null)
+        public async Task<M> SendMessageAndAwaitResponse(M message, ICanReceiveMessage<M> sender, TimeSpan? timeout = null, System.Threading.CancellationToken? cancellationToken = null)
         {
+            if (sender != null && !(sender is ActorRefMessageReceiver<M>))
+                throw new ArgumentException("the sender must be a ActorRefMessageReceiver", "sender");
+
             var actorPaths = await ActorDirectory.GetMatchingActors(message, PatternFactory);
             if (!actorPaths.Any())
             {
@@ -144,10 +167,11 @@ namespace Hexagon.AkkaImpl
             if (secondaryReceiverPaths.Any())
             {
                 Logger.Debug(@"Secondary receivers of message {0} : {1}", message, string.Join(", ", secondaryReceiverPaths));
+                var readonlySender = sender == null ? null : new ReadOnlyActorRefMessageReceiver<M>(sender as ActorRefMessageReceiver<M>);
                 foreach (var secondaryActorPath in secondaryReceiverPaths)
                 {
                     var secondaryReceiver = new ActorPathMessageReceiver<M>(secondaryActorPath, Mediator);
-                    secondaryReceiver.Tell(message, null);
+                    secondaryReceiver.Tell(message, readonlySender);
                 }
             }
             var primaryReceivers = actorPaths.Where(ma => !ma.IsSecondary);
