@@ -231,7 +231,7 @@ namespace Hexagon.AkkaImpl
     {
         public XmlMessageSystem(Akka.Configuration.Config config, NodeConfig nodeConfig) : 
             base(
-                "Finastra microservices actor system using XML messages",
+                "Finastra-microservices-actor-system-using-XML-messages",
                 config,
                 new XmlMessageFactory(),
                 new XmlMessagePatternFactory(),
@@ -255,7 +255,7 @@ namespace Hexagon.AkkaImpl
     {
         public JsonMessageSystem(Akka.Configuration.Config config, NodeConfig nodeConfig) : 
             base(
-                "Finastra microservices actor system using JSON messages",
+                "Finastra-microservices-actor-system-using-JSON-messages",
                 config,
                 new JsonMessageFactory(),
                 new JsonMessagePatternFactory(),
