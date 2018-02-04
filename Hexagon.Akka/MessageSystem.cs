@@ -145,7 +145,7 @@ namespace Hexagon.AkkaImpl
                 Logger.Warning($"Several actors with same highest matching score {highestMatchingScore}, randomly picking one based on actor mistrust factors...");
                 // If several primary actors have the same highest score, randomly pick one depending on the mistrust factor
                 var mistrusts = mainPrimaryActors.Select(ma => ma.MistrustFactor).ToArray();
-                var selectedActor = mainPrimaryActors.ElementAt(MistrustBasedRandomGenerator.SelectIndex(mistrusts));
+                var selectedActor = mainPrimaryActors.ElementAt(MistrustBasedRandomRoutingLogic.SelectIndex(mistrusts));
                 if (Logger.IsDebugEnabled)
                     Logger.Debug($"Primary actor {selectedActor.Path} randomly selected (mistrust factor : {selectedActor.MistrustFactor})");
                 return selectedActor.Path;

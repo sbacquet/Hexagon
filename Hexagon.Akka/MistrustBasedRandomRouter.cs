@@ -9,24 +9,17 @@ using Akka.Configuration;
 using Akka.Dispatch;
 using Akka.Actor;
 
-namespace Finastra
+namespace Hexagon.AkkaImpl
 {
-    public class ABRandomLogic : RoutingLogic
+    public class MistrustBasedRandomRoutingLogic : RoutingLogic
     {
-        int _weightForA;
-        int _weightForB;
+        readonly int[] _mistrustFactors;
 
-        public ABRandomLogic(int weightForA, int weightForB)
+        public MistrustBasedRandomRoutingLogic(int[] mistrustFactors)
         {
-            _weightForA = weightForA;
-            _weightForB = weightForB;
+            _mistrustFactors = mistrustFactors;
         }
-        /// <summary>
-        /// Picks a random <see cref="Routee"/> to receive the <paramref name="message"/>.
-        /// </summary>
-        /// <param name="message">The message that is being routed.</param>
-        /// <param name="routees">A collection of routees to randomly choose from when receiving the <paramref name="message"/>.</param>
-        /// <returns>A <see cref="Routee" /> that receives the <paramref name="message"/>.</returns>
+
         public override Routee Select(object message, Routee[] routees)
         {
             if (routees == null || routees.Length == 0)
@@ -34,31 +27,54 @@ namespace Finastra
                 return Routee.NoRoutee;
             }
 
-            if (routees.Length > 2)
+            if (routees.Length != _mistrustFactors.Length)
             {
-                throw new ArgumentOutOfRangeException("routees.Length", "For A/B router, routees must be 2 max");
+                throw new ArgumentOutOfRangeException("routees.Length", "Routing candidates must have the same cardinality as mistrustFactors");
             }
 
             if (routees.Length == 1)
                 return routees[0];
-            if (_weightForA == 0) return routees[1];
-            if (_weightForB == 0) return routees[0];
 
-            int totalWeight = _weightForA + _weightForB;
-            int weight = ThreadLocalRandom.Current.Next(totalWeight);
-            return routees[System.Convert.ToInt32(weight >= _weightForA)];
+            return routees[SelectIndex(_mistrustFactors)];
+        }
+
+        public static int SelectIndex(int[] mistrustFactors)
+        {
+            int product = mistrustFactors.Aggregate(1, (prod, factor) => prod * factor);
+            int[] weights = mistrustFactors.Select(factor => product / factor).ToArray();
+            var indexedWeights = weights.Select((weight, index) => (index, weight));
+            var ranges =
+                indexedWeights
+                .Aggregate(
+                    new List<(int index, int lower, int upper)>(),
+                    (list, indexedWeight) =>
+                    {
+                        int lower = 0;
+                        int upper = indexedWeight.Item2 - 1;
+                        if (list.Any())
+                        {
+                            int shift = list.Last().upper + 1;
+                            lower += shift;
+                            upper += shift;
+                        }
+                        list.Add((indexedWeight.Item1, lower, upper));
+                        return list;
+                    }
+                );
+            int selectedIndex = Akka.Util.ThreadLocalRandom.Current.Next(weights.Sum());
+            return ranges.First(ilu => selectedIndex >= ilu.lower && selectedIndex <= ilu.upper).index;
         }
     }
 
     /// <summary>
-    /// This class represents a <see cref="Group"/> router that sends messages to a random <see cref="Routee"/>.
+    /// This class represents a <see cref="Group"/> router that sends messages to a random <see cref="Routee"/> based on their mistrust factor.
     /// </summary>
-    public sealed class ABRandomGroup : Group
+    public sealed class MistrustBasedRandomGroup : Group
     {
-        IList<int> _weights = null;
+        readonly int[] _weights;
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="ABRandomGroup"/> class.
+        /// Initializes a new instance of the <see cref="MistrustBasedRandomGroup"/> class.
         /// </summary>
         /// <param name="config">
         /// The configuration to use to lookup paths used by the group router.
@@ -67,48 +83,42 @@ namespace Finastra
         /// If 'routees.path' is defined in the provided configuration then those paths will be used by the router.
         /// </note>
         /// </param>
-        public ABRandomGroup(Config config)
+        public MistrustBasedRandomGroup(Config config)
             : this(
-                  config.GetStringList("routees.paths"),
-                  config.GetIntList("routees.weights"),
+                  config.GetStringList("routees.paths").ToArray(),
+                  config.GetIntList("routees.weights").ToArray(),
                   Dispatchers.DefaultDispatcherId)
         {
         }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="ABRandomGroup"/> class.
+        /// Initializes a new instance of the <see cref="MistrustBasedRandomGroup"/> class.
         /// </summary>
         /// <param name="paths">>A list of actor paths used by the group router.</param>
-        public ABRandomGroup(params string[] paths)
+        public MistrustBasedRandomGroup(params string[] paths)
             : base(paths, Dispatchers.DefaultDispatcherId)
         {
-            if (paths.Length > 2) throw new ArgumentOutOfRangeException("paths", "For ABRandom router, there must be less than 2 routees");
-            if (paths.Length == 1)
-                _weights = new int[] { 100 };
-            else
-                _weights = new int[] { 100, 100 };
+            _weights = Enumerable.Repeat(1, paths.Length).ToArray();
         }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="ABRandomGroup"/> class.
+        /// Initializes a new instance of the <see cref="MistrustBasedRandomGroup"/> class.
         /// </summary>
         /// <param name="paths">An enumeration of paths used by the group router.</param>
-        public ABRandomGroup(IList<string> paths, IList<int> weights)
+        public MistrustBasedRandomGroup(string[] paths, int[] weights)
             : this(paths, weights, Dispatchers.DefaultDispatcherId)
         {
         }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="ABRandomGroup"/> class.
+        /// Initializes a new instance of the <see cref="MistrustBasedRandomGroup"/> class.
         /// </summary>
         /// <param name="paths">An enumeration of paths used by the group router.</param>
         /// <param name="routerDispatcher">The dispatcher to use when passing messages to the routees.</param>
-        public ABRandomGroup(IList<string> paths, IList<int> weights, string routerDispatcher)
+        public MistrustBasedRandomGroup(string[] paths, int[] weights, string routerDispatcher)
             : base(paths, routerDispatcher)
         {
-            if (paths.Count > 2) throw new ArgumentOutOfRangeException("paths", "For ABRandom router, there must be less than 2 routees");
-            if (weights.Count > 2) throw new ArgumentOutOfRangeException("weights", "For ABRandom router, there must be less than 2 routee weights");
-            if (paths.Count != weights.Count) throw new ArgumentOutOfRangeException("weights", "For ABRandom router, each routee must have its corresponding weight");
+            if (paths.Length != weights.Length) throw new ArgumentOutOfRangeException("weights", "For MistrustBasedRandomGroup router, each routee must have its corresponding weight");
             if (weights.Sum() <= 0) throw new ArgumentOutOfRangeException("weights", "Sum of weights must be > 0");
 
             _weights = weights;
@@ -131,32 +141,33 @@ namespace Finastra
         /// <returns>The newly created router tied to the given system.</returns>
         public override Router CreateRouter(ActorSystem system)
         {
-            return new Router(new ABRandomLogic(_weights[0], _weights.Count == 2 ? _weights[1] : 0));
+            return new Router(new MistrustBasedRandomRoutingLogic(_weights.ToArray()));
         }
 
         /// <summary>
-        /// Creates a new <see cref="ABRandomGroup" /> router with a given dispatcher id.
+        /// Creates a new <see cref="MistrustBasedRandomGroup" /> router with a given dispatcher id.
         /// <note>
         /// This method is immutable and returns a new instance of the router.
         /// </note>
         /// </summary>
         /// <param name="dispatcher">The dispatcher id used to configure the new router.</param>
         /// <returns>A new router with the provided dispatcher id.</returns>
-        public ABRandomGroup WithDispatcher(string dispatcher)
+        public MistrustBasedRandomGroup WithDispatcher(string dispatcher)
         {
-            return new ABRandomGroup(InternalPaths.ToList<string>(), _weights, dispatcher);
+            return new MistrustBasedRandomGroup(InternalPaths, _weights, dispatcher);
         }
 
         /// <summary>
-        /// Creates a surrogate representation of the current <see cref="ABRandomGroup"/>.
+        /// Creates a surrogate representation of the current <see cref="MistrustBasedRandomGroup"/>.
         /// </summary>
         /// <param name="system">The actor system that owns this router.</param>
-        /// <returns>The surrogate representation of the current <see cref="ABRandomGroup"/>.</returns>
+        /// <returns>The surrogate representation of the current <see cref="MistrustBasedRandomGroup"/>.</returns>
         public override ISurrogate ToSurrogate(ActorSystem system)
         {
-            return new ABRandomGroupSurrogate
+            return new MistrustBasedRandomGroupSurrogate
             {
                 Paths = InternalPaths,
+                Weights = _weights,
                 RouterDispatcher = RouterDispatcher
             };
         }
@@ -165,24 +176,24 @@ namespace Finastra
         /// This class represents a surrogate of a <see cref="RandomGroup"/> router.
         /// Its main use is to help during the serialization process.
         /// </summary>
-        class ABRandomGroupSurrogate : ISurrogate
+        class MistrustBasedRandomGroupSurrogate : ISurrogate
         {
-            IList<int> _weights = null;
-
             /// <summary>
             /// Creates a <see cref="RandomGroup"/> encapsulated by this surrogate.
             /// </summary>
             /// <param name="system">The actor system that owns this router.</param>
-            /// <returns>The <see cref="ABRandomGroup"/> encapsulated by this surrogate.</returns>
+            /// <returns>The <see cref="MistrustBasedRandomGroup"/> encapsulated by this surrogate.</returns>
             public ISurrogated FromSurrogate(ActorSystem system)
             {
-                return new ABRandomGroup(Paths.ToList<string>(), _weights, RouterDispatcher);
+                return new MistrustBasedRandomGroup(Paths, Weights, RouterDispatcher);
             }
 
             /// <summary>
             /// The actor paths used by this router during routee selection.
             /// </summary>
-            public IEnumerable<string> Paths { get; set; }
+            public string[] Paths { get; set; }
+
+            public int[] Weights { get; set; }
 
             /// <summary>
             /// The dispatcher to use when passing messages to the routees.
