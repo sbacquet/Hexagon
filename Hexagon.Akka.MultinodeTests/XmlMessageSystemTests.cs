@@ -37,17 +37,12 @@ namespace Hexagon.AkkaImpl.MultinodeTests
                 ConfigurationFactory
                 .ParseString(@"
                     akka.loglevel = DEBUG
-                    akka.actor.provider = ""Akka.Cluster.ClusterActorRefProvider, Akka.Cluster""
-                    akka.actor.serialize-messages = off
-                    akka.remote.log-remote-lifecycle-events = off
-                    akka.cluster.auto-down-unreachable-after = 0s
-                    akka.cluster.pub-sub.max-delta-elements = 500
-                    akka.test.timefactor = 1
                 ")
+                .WithFallback(MultiNodeClusterSpec.ClusterConfig())
                 .WithFallback(DistributedData.DefaultConfig())
                 .WithFallback(DistributedPubSub.DefaultConfig());
 
-            TestTransport = true;
+            //TestTransport = true;
         }
     }
 
