@@ -7,7 +7,9 @@ using Akka.Actor;
 using Akka.Cluster.Tools.PublishSubscribe;
 using Akka.DistributedData;
 using Akka.Event;
-
+using Akka.Routing;
+using Akka.Cluster.Routing;
+using Akka.Configuration;
 //[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("Hexagon.Akka.UnitTests")]
 
 namespace Hexagon.AkkaImpl
@@ -36,12 +38,16 @@ namespace Hexagon.AkkaImpl
 
         public MessageSystem(
             string systemName, 
-            Akka.Configuration.Config config, 
+            Config config, 
             IMessageFactory<M> messageFactory, 
             IMessagePatternFactory<P> patternFactory,
             NodeConfig nodeConfig)
             : this(
-                  null == config ? ActorSystem.Create(systemName) : ActorSystem.Create(systemName, config), 
+                  null == config ? 
+                  ActorSystem.Create(systemName) : 
+                  ActorSystem.Create(
+                      systemName, 
+                      ConfigurationFactory.ParseString($@"akka.cluster.roles=""{nodeConfig.Role}""").WithFallback(config)), 
                   messageFactory, 
                   patternFactory,
                   nodeConfig)
@@ -220,7 +226,14 @@ namespace Hexagon.AkkaImpl
                             entry.AsyncAction,
                             filter(entry)));
 
-                actorProps = Props.Create(() => new Actor<M,P>(actions, asyncActions, MessageFactory, NodeConfig));
+                string routeOnRole = NodeConfig.GetActorProps(actorName)?.RouteOnRole;
+                if (routeOnRole == null)
+                    actorProps = Props.Create(() => new Actor<M,P>(actions, asyncActions, MessageFactory, NodeConfig));
+                else
+                    actorProps = new ClusterRouterPool(
+                        new RoundRobinPool(0),
+                        new ClusterRouterPoolSettings(3, 1, false, routeOnRole))
+                        .Props(Props.Create<Actor<M, P>>(actions, asyncActions, MessageFactory, NodeConfig));
                 var actor = ActorSystem.ActorOf(actorProps, actorName);
                 actor.Tell(new RegisterToGlobalDirectory<P>(group.Select(entry => entry.Pattern)));
             }
