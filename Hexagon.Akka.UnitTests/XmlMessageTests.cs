@@ -96,5 +96,17 @@ namespace Hexagon.AkkaImpl.UnitTests
                 .Result;
             Assert.True(r.Match(@"message[. = ""OK!""]"));
         }
+
+        [PatternActionsRegistration]
+        public static void Register(PatternActionsRegistry<XmlMessage, XmlMessagePattern> registry)
+        {
+            registry.Add(new XmlMessagePattern(new string[] { "*" }), (m, sender, self, _) => { }, "actor");
+        }
+
+        [Fact]
+        public void ActorFromAssembly()
+        {
+            var registry = PatternActionsRegistry<XmlMessage, XmlMessagePattern>.FromAssembly(System.Reflection.Assembly.GetExecutingAssembly().GetName().FullName);
+        }
     }
 }

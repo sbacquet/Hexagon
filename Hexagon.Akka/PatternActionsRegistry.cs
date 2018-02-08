@@ -63,12 +63,12 @@ namespace Hexagon.AkkaImpl
         }
 
         public ILookup<string, MessageRegistryEntry> LookupByKey()
-            => Registry.ToLookup(entry => entry.Key);
+            => Registry.ToLookup(entry => entry.Key);   
 
-        public static PatternActionsRegistry<M, P> FromAssembly(string assemblyPath)
+        public static PatternActionsRegistry<M, P> FromAssembly(string assemblyName)
         {
-            var assembly = Assembly.LoadFrom(assemblyPath);
-            var registrationMethod = assembly.GetTypes().SelectMany(type => type.GetMethods(BindingFlags.Public | BindingFlags.Static)).Where(method => method.GetCustomAttributes<PatternActionsRegistrationAttribute>(false).Count() > 0).First();
+            var assembly = Assembly.Load(assemblyName);
+            var registrationMethod = assembly.GetTypes().SelectMany(type => type.GetMethods(BindingFlags.Static | BindingFlags.Public).Where(method => method.GetCustomAttributes<PatternActionsRegistrationAttribute>(false).Count() > 0)).First();
             PatternActionsRegistry<M, P> registry = new PatternActionsRegistry<M, P>();
             registrationMethod.Invoke(null, new[] { registry });
             return registry;

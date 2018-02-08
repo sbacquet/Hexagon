@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace Hexagon.AkkaImpl
 {
     [System.AttributeUsage(AttributeTargets.Method, Inherited = false, AllowMultiple = false)]
-    sealed class PatternActionsRegistrationAttribute : Attribute
+    public sealed class PatternActionsRegistrationAttribute : Attribute
     {
         public PatternActionsRegistrationAttribute()
         {
