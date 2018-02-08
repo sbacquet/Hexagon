@@ -20,27 +20,27 @@ namespace Hexagon.AkkaImpl
     {
         public class ActionWithFilter
         {
-            public ActionWithFilter(Action<M, ActorRefMessageReceiver<M>, ActorRefMessageReceiver<M>> action, Predicate<M> filter)
+            public ActionWithFilter(Action<M, ActorRefMessageReceiver<M>, ActorRefMessageReceiver<M>, MessageSystem<M, P>> action, Predicate<M> filter)
             {
                 Action = action;
                 Filter = filter;
             }
-            public readonly Action<M, ActorRefMessageReceiver<M>, ActorRefMessageReceiver<M>> Action;
+            public readonly Action<M, ActorRefMessageReceiver<M>, ActorRefMessageReceiver<M>, MessageSystem<M, P>> Action;
             public readonly Predicate<M> Filter;
         }
 
         public class AsyncActionWithFilter
         {
-            public AsyncActionWithFilter(Func<M, ActorRefMessageReceiver<M>, ActorRefMessageReceiver<M>, Task> action, Predicate<M> filter)
+            public AsyncActionWithFilter(Func<M, ActorRefMessageReceiver<M>, ActorRefMessageReceiver<M>, MessageSystem<M, P>, Task> action, Predicate<M> filter)
             {
                 Action = action;
                 Filter = filter;
             }
-            public readonly Func<M, ActorRefMessageReceiver<M>, ActorRefMessageReceiver<M>, Task> Action;
+            public readonly Func<M, ActorRefMessageReceiver<M>, ActorRefMessageReceiver<M>, MessageSystem<M, P>, Task> Action;
             public readonly Predicate<M> Filter;
         }
 
-        public Actor(IEnumerable<ActionWithFilter> actions, IEnumerable<AsyncActionWithFilter> asyncActions, IMessageFactory<M> factory, NodeConfig nodeConfig)
+        public Actor(IEnumerable<ActionWithFilter> actions, IEnumerable<AsyncActionWithFilter> asyncActions, IMessageFactory<M> factory, NodeConfig nodeConfig, MessageSystem<M, P> messageSystem)
         {
             ReceiveAsync<RegisterToGlobalDirectory<P>>(mess =>
             {
@@ -51,6 +51,21 @@ namespace Hexagon.AkkaImpl
                 return actorDirectory.PublishPatterns(Self.Path.ToStringWithoutAddress(), mess.Patterns);
             });
 
+            CreateReceivers(actions, asyncActions, factory, nodeConfig, messageSystem);
+        }
+
+        public Actor(string name, string assemblyPath)
+        {
+            var registry = PatternActionsRegistry<M, P>.FromAssembly(assemblyPath);
+            var actorEntries = registry.LookupByKey()[name];
+            var (actions, asyncActions) = MessageSystem<M, P>.GetActions(actorEntries);
+
+            var messageSystem = MessageSystem<M, P>.Instance;
+            CreateReceivers(actions, asyncActions, messageSystem.MessageFactory, messageSystem.NodeConfig, messageSystem);
+        }
+
+        void CreateReceivers(IEnumerable<ActionWithFilter> actions, IEnumerable<AsyncActionWithFilter> asyncActions, IMessageFactory<M> factory, NodeConfig nodeConfig, MessageSystem<M, P> messageSystem)
+        {
             Receive<BytesMessage>(message => Self.Forward(factory.FromBytes(message.Bytes)));
 
             if (actions != null)
@@ -60,7 +75,8 @@ namespace Hexagon.AkkaImpl
                         message => action.Action.Invoke(
                             message, 
                             new ActorRefMessageReceiver<M>(Context.Sender),
-                            new ActorRefMessageReceiver<M>(Context.Self)
+                            new ActorRefMessageReceiver<M>(Context.Self),
+                            messageSystem
                             ),
                         action.Filter);
                 }
@@ -72,7 +88,8 @@ namespace Hexagon.AkkaImpl
                         message => asyncAction.Action.Invoke(
                             message,
                             new ActorRefMessageReceiver<M>(Context.Sender),
-                            new ActorRefMessageReceiver<M>(Context.Self)
+                            new ActorRefMessageReceiver<M>(Context.Self),
+                            messageSystem
                             ),
                         asyncAction.Filter);
                 }

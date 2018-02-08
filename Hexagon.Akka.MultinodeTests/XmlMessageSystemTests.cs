@@ -54,9 +54,11 @@ namespace Hexagon.AkkaImpl.MultinodeTests
         private readonly RoleName _third;
 
         Hexagon.AkkaImpl.XmlMessageSystem _messageSystem;
+        Hexagon.AkkaImpl.PatternActionsRegistry<XmlMessage, XmlMessagePattern> _registry;
 
         public XmlMessageSystemTests() : this(new XmlMessageSystemTestsConfig())
         {
+            _registry = new PatternActionsRegistry<XmlMessage, XmlMessagePattern>();
         }
 
         protected XmlMessageSystemTests(XmlMessageSystemTestsConfig config) : base(config, typeof(XmlMessageSystemTests))
@@ -101,11 +103,11 @@ namespace Hexagon.AkkaImpl.MultinodeTests
             {
                 RunOn(() =>
                 {
-                    _messageSystem.RegisterAsync(
+                    _registry.Add(
                         new XmlMessagePattern($@"/request[@routeto = ""{_first.Name}""]"),
-                        async (message, sender, self) =>
+                        async (message, sender, self, messageSystem) =>
                         {
-                            XmlMessage answer = await _messageSystem.SendMessageAndAwaitResponse(XmlMessage.FromString(@"<question>Why?</question>"), self);
+                            XmlMessage answer = await messageSystem.SendMessageAndAwaitResponse(XmlMessage.FromString(@"<question>Why?</question>"), self);
                             answer.Should().Match<XmlMessage>(mess => mess.Match(@"/answer[. = ""Because.""]"));
                             TestActor.Tell("OK");
                         },
@@ -114,20 +116,20 @@ namespace Hexagon.AkkaImpl.MultinodeTests
 
                 RunOn(() =>
                 {
-                    _messageSystem.Register(
+                    _registry.Add(
                         new XmlMessagePattern(true, "/request"),
-                        (message, sender, self) =>
+                        (message, sender, self, messageSystem) =>
                         {
                             TestActor.Tell("OK");
                         },
                         _second.Name);
-                    _messageSystem.Register(
+                    _registry.Add(
                         new XmlMessagePattern(@"/question[. = ""Why?""]"),
-                        (message, sender, self) => sender.Tell(XmlMessage.FromString(@"<answer>Because.</answer>"), self),
+                        (message, sender, self, messageSystem) => sender.Tell(XmlMessage.FromString(@"<answer>Because.</answer>"), self),
                         _second.Name);
                 }, _second);
 
-                _messageSystem.Start();
+                _messageSystem.Start(_registry);
                 EnterBarrier("2-started");
 
                 RunOn(() =>

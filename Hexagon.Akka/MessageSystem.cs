@@ -14,27 +14,30 @@ using Akka.Configuration;
 
 namespace Hexagon.AkkaImpl
 {
-    internal class MessageRegistryEntry<M, P>
-    {
-        internal P Pattern;
-        internal Action<M, ICanReceiveMessage<M>, ICanReceiveMessage<M>> Action;
-        internal Func<M, ICanReceiveMessage<M>, ICanReceiveMessage<M>, Task> AsyncAction;
-        internal string Key;
-    }
-    public class MessageSystem<M, P> : IMessageSystem<M, P> 
+    public class MessageSystem<M, P>
         where P : IMessagePattern<M>
         where M : IMessage
     {
         readonly ActorSystem ActorSystem;
-        readonly List<MessageRegistryEntry<M, P>> Registry;
-        readonly List<IActorRef> Actors;
-        readonly IActorRef Mediator;
-        readonly IActorRef Replicator;
-        readonly IMessageFactory<M> MessageFactory;
-        readonly IMessagePatternFactory<P> PatternFactory;
+        public IActorRef Mediator => DistributedPubSub.Get(ActorSystem).Mediator;
+        public IActorRef Replicator => DistributedData.Get(ActorSystem).Replicator;
+        public readonly IMessageFactory<M> MessageFactory;
+        public readonly IMessagePatternFactory<P> PatternFactory;
         readonly ILoggingAdapter Logger;
-        readonly NodeConfig NodeConfig;
+        public readonly NodeConfig NodeConfig;
         readonly ActorDirectory<M,P> ActorDirectory;
+
+        static MessageSystem<M, P> _instance = null;
+        public static MessageSystem<M, P> Instance
+        {
+            get => _instance;
+            private set
+            {
+                if (_instance != null)
+                    throw new Exception($"MessageSystem<{typeof(M).Name},{typeof(P).Name}> singleton already set !");
+                _instance = value;
+            }
+        }
 
         public MessageSystem(
             string systemName, 
@@ -61,33 +64,13 @@ namespace Hexagon.AkkaImpl
             NodeConfig nodeConfig)
         {
             ActorSystem = system;
-            Registry = new List<MessageRegistryEntry<M, P>>();
-            Actors = new List<IActorRef>();
-            Mediator = DistributedPubSub.Get(ActorSystem).Mediator;
-            Replicator = DistributedData.Get(ActorSystem).Replicator;
             MessageFactory = factory;
             PatternFactory = patternFactory;
             Logger = Logging.GetLogger(system, this);
             NodeConfig = nodeConfig;
             ActorDirectory = new ActorDirectory<M, P>(system, nodeConfig);
-        }
 
-        public void Register(P pattern, Action<M, ICanReceiveMessage<M>, ICanReceiveMessage<M>> action, string key)
-        {
-            Registry.Add(new MessageRegistryEntry<M, P> {
-                Pattern = pattern,
-                Action = action,
-                Key = key });
-        }
-
-        public void RegisterAsync(P pattern, Func<M, ICanReceiveMessage<M>, ICanReceiveMessage<M>, Task> action, string key)
-        {
-            Registry.Add(new MessageRegistryEntry<M, P>
-            {
-                Pattern = pattern,
-                AsyncAction = action,
-                Key = key
-            });
+            Instance = this;
         }
 
         public async void SendMessage(M message, ICanReceiveMessage<M> sender)
@@ -192,48 +175,60 @@ namespace Hexagon.AkkaImpl
             return default(M);
         }
 
-        public void Start()
+        public void Start(PatternActionsRegistry<M,P> registry)
         {
-            CreateActors();
-            Registry.Clear();
+            // Initialize mediator
+            DistributedPubSub.Get(ActorSystem);
+            // Initialize replicator
+            DistributedData.Get(ActorSystem);
+            // Create actors from registry
+            CreateActors(registry);
             // Synchronize other actors
             System.Threading.Thread.Sleep(TimeSpan.FromSeconds(NodeConfig.GossipTimeFrameInSeconds));
         }
 
-        static Func<MessageRegistryEntry<M, P>, Predicate<M>> FilterEntry => entry => message => entry.Pattern.Match(message);
-        static Func<MessageRegistryEntry<M, P>, Predicate<M>> NoFilterEntry => entry => null;
+        static Func<PatternActionsRegistry<M, P>.MessageRegistryEntry, Predicate<M>> FilterEntry => entry => message => entry.Pattern.Match(message);
+        static Func<PatternActionsRegistry<M, P>.MessageRegistryEntry, Predicate<M>> NoFilterEntry => entry => null;
 
-        private void CreateActors()
+        public static (IEnumerable<Actor<M,P>.ActionWithFilter>, IEnumerable<Actor<M, P>.AsyncActionWithFilter>) GetActions(IEnumerable<PatternActionsRegistry<M, P>.MessageRegistryEntry> registryEntries)
         {
-            var groups = Registry.GroupBy(entry => entry.Key);
+            Func<PatternActionsRegistry<M, P>.MessageRegistryEntry, Predicate<M>> filter = (registryEntries.Count() == 1 ? NoFilterEntry : FilterEntry);
+            var actions =
+                registryEntries
+                .Where(entry => entry.Action != null)
+                .Select(entry =>
+                    new Actor<M, P>.ActionWithFilter(
+                        entry.Action,
+                        filter(entry)));
+            var asyncActions =
+                registryEntries
+                .Where(entry => entry.AsyncAction != null)
+                .Select(entry =>
+                    new Actor<M, P>.AsyncActionWithFilter(
+                        entry.AsyncAction,
+                        filter(entry)));
+            return (actions, asyncActions);
+        }
+
+        private void CreateActors(PatternActionsRegistry<M, P> registry)
+        {
+            var groups = registry.LookupByKey();
             foreach (var group in groups)
             {
                 string actorName = group.Key;
-                Props actorProps;
-                Func<MessageRegistryEntry<M, P>, Predicate<M>> filter = (group.Count() == 1 ? NoFilterEntry : FilterEntry);
-                var actions = 
-                    group
-                    .Where(entry => entry.Action != null)
-                    .Select(entry => 
-                        new Actor<M,P>.ActionWithFilter(
-                            entry.Action,
-                            filter(entry)));
-                var asyncActions =
-                    group
-                    .Where(entry => entry.AsyncAction != null)
-                    .Select(entry =>
-                        new Actor<M, P>.AsyncActionWithFilter(
-                            entry.AsyncAction,
-                            filter(entry)));
+                Func<PatternActionsRegistry<M, P>.MessageRegistryEntry, Predicate<M>> filter = (group.Count() == 1 ? NoFilterEntry : FilterEntry);
+                var (actions, asyncActions) = GetActions(group.AsEnumerable());
 
                 string routeOnRole = NodeConfig.GetActorProps(actorName)?.RouteOnRole;
+                Props actorProps;
                 if (routeOnRole == null)
-                    actorProps = Props.Create(() => new Actor<M,P>(actions, asyncActions, MessageFactory, NodeConfig));
+                    actorProps = Props.Create(() => new Actor<M,P>(actions, asyncActions, MessageFactory, NodeConfig, this));
                 else
-                    actorProps = new ClusterRouterPool(
-                        new RoundRobinPool(0),
-                        new ClusterRouterPoolSettings(3, 1, false, routeOnRole))
-                        .Props(Props.Create<Actor<M, P>>(actions, asyncActions, MessageFactory, NodeConfig));
+                    actorProps = 
+                        new ClusterRouterPool(
+                            new RoundRobinPool(0),
+                            new ClusterRouterPoolSettings(3, 1, false, routeOnRole))
+                        .Props(Props.Create<Actor<M, P>>(actorName, registry.AssemblyName));
                 var actor = ActorSystem.ActorOf(actorProps, actorName);
                 actor.Tell(new RegisterToGlobalDirectory<P>(group.Select(entry => entry.Pattern)));
             }
