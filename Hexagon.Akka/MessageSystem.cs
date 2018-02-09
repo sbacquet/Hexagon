@@ -216,7 +216,6 @@ namespace Hexagon.AkkaImpl
             foreach (var group in groups)
             {
                 string actorName = group.Key;
-                Func<PatternActionsRegistry<M, P>.MessageRegistryEntry, Predicate<M>> filter = (group.Count() == 1 ? NoFilterEntry : FilterEntry);
                 var (actions, asyncActions) = GetActions(group.AsEnumerable());
 
                 string routeOnRole = NodeConfig.GetActorProps(actorName)?.RouteOnRole;
