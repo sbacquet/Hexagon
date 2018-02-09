@@ -6,14 +6,6 @@ using System.Threading.Tasks;
 
 namespace Hexagon.AkkaImpl
 {
-    internal class RegisterToGlobalDirectory<P>
-    {
-        public RegisterToGlobalDirectory(IEnumerable<P> patterns)
-        {
-            Patterns = patterns;
-        }
-        public IEnumerable<P> Patterns { get; }
-    }
     public class Actor<M, P> : ReceiveActor 
         where P : IMessagePattern<M>
         where M : IMessage
@@ -42,26 +34,21 @@ namespace Hexagon.AkkaImpl
 
         public Actor(IEnumerable<ActionWithFilter> actions, IEnumerable<AsyncActionWithFilter> asyncActions, IMessageFactory<M> factory, NodeConfig nodeConfig, MessageSystem<M, P> messageSystem)
         {
-            ReceiveAsync<RegisterToGlobalDirectory<P>>(mess =>
-            {
-                var mediator = DistributedPubSub.Get(Context.System).Mediator;
-                mediator.Tell(new Put(Self));
-
-                var actorDirectory = new ActorDirectory<M, P>(Context.System, nodeConfig);
-                return actorDirectory.PublishPatterns(Self.Path.ToStringWithoutAddress(), mess.Patterns);
-            });
-
             CreateReceivers(actions, asyncActions, factory, nodeConfig, messageSystem);
         }
 
         public Actor(string name, string assemblyPath)
         {
+            Context.System.Log.Debug(@"Creating remote actor ""{0}"" from assembly ""{1}""", name, assemblyPath);
+
             var registry = PatternActionsRegistry<M, P>.FromAssembly(assemblyPath);
             var actorEntries = registry.LookupByKey()[name];
             var (actions, asyncActions) = MessageSystem<M, P>.GetActions(actorEntries);
 
             var messageSystem = MessageSystem<M, P>.Instance;
             CreateReceivers(actions, asyncActions, messageSystem.MessageFactory, messageSystem.NodeConfig, messageSystem);
+
+            Context.System.Log.Debug(@"Remote actor ""{0}"" created properly from assembly ""{1}""", name, assemblyPath);
         }
 
         void CreateReceivers(IEnumerable<ActionWithFilter> actions, IEnumerable<AsyncActionWithFilter> asyncActions, IMessageFactory<M> factory, NodeConfig nodeConfig, MessageSystem<M, P> messageSystem)

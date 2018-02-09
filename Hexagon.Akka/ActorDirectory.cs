@@ -95,19 +95,24 @@ namespace Hexagon.AkkaImpl
                 throw new Exception("cannot distribute empty pattern list");
 
             var cluster = Cluster.Get(ActorSystem);
-            int mistrustFactor = NodeConfig.GetMistrustFactor(actorPath);
-            var actorDirectory =
-                LWWDictionary.Create<string, ActorProps>(
-                    cluster.SelfUniqueAddress,
-                    actorPath,
-                    new ActorProps()
-                    {
-                        Patterns = patterns.ToArray(),
-                        MistrustFactor = mistrustFactor
-                    });
-
             var replicator = DistributedData.Get(ActorSystem).Replicator;
+            var actorDirectory = LWWDictionary<string, ActorProps>.Empty;
             var setKey = new LWWDictionaryKey<string, ActorProps>("ActorDirectory");
+            var getResponse = await replicator.Ask<IGetResponse>(Dsl.Get(setKey, ReadLocal.Instance));
+            if (getResponse.IsSuccessful)
+                actorDirectory = getResponse.Get(setKey);
+            int mistrustFactor = NodeConfig.GetMistrustFactor(actorPath);
+            actorDirectory = actorDirectory.SetItem(cluster, actorPath, new ActorProps { Patterns = patterns.ToArray(), MistrustFactor = mistrustFactor });
+            //var actorDirectory =
+            //    LWWDictionary.Create<string, ActorProps>(
+            //        cluster.SelfUniqueAddress,
+            //        actorPath,
+            //        new ActorProps()
+            //        {
+            //            Patterns = patterns.ToArray(),
+            //            MistrustFactor = mistrustFactor
+            //        });
+
             var writeConsistency = WriteLocal.Instance; //new WriteAll(TimeSpan.FromSeconds(5));
             var updateResponse = await replicator.Ask<IUpdateResponse>(Dsl.Update(setKey, actorDirectory, writeConsistency));
             if (!updateResponse.IsSuccessful)

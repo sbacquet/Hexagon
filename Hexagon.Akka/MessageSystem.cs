@@ -47,10 +47,12 @@ namespace Hexagon.AkkaImpl
             NodeConfig nodeConfig)
             : this(
                   null == config ? 
-                  ActorSystem.Create(systemName) : 
+                  ActorSystem.Create(
+                      systemName,
+                      ConfigurationFactory.ParseString($@"akka.cluster.roles = [""{nodeConfig.Role}""]")) : 
                   ActorSystem.Create(
                       systemName, 
-                      ConfigurationFactory.ParseString($@"akka.cluster.roles=""{nodeConfig.Role}""").WithFallback(config)), 
+                      ConfigurationFactory.ParseString($@"akka.cluster.roles = [""{nodeConfig.Role}""]").WithFallback(config)), 
                   messageFactory, 
                   patternFactory,
                   nodeConfig)
@@ -182,7 +184,7 @@ namespace Hexagon.AkkaImpl
             // Initialize replicator
             DistributedData.Get(ActorSystem);
             // Create actors from registry
-            CreateActors(registry);
+            CreateActors(registry).Wait();
             // Synchronize other actors
             System.Threading.Thread.Sleep(TimeSpan.FromSeconds(NodeConfig.GossipTimeFrameInSeconds));
         }
@@ -210,7 +212,7 @@ namespace Hexagon.AkkaImpl
             return (actions, asyncActions);
         }
 
-        private void CreateActors(PatternActionsRegistry<M, P> registry)
+        private async Task CreateActors(PatternActionsRegistry<M, P> registry)
         {
             var groups = registry.LookupByKey();
             foreach (var group in groups)
@@ -221,16 +223,31 @@ namespace Hexagon.AkkaImpl
                 string routeOnRole = NodeConfig.GetActorProps(actorName)?.RouteOnRole;
                 Props actorProps;
                 if (routeOnRole == null)
-                    actorProps = Props.Create(() => new Actor<M,P>(actions, asyncActions, MessageFactory, NodeConfig, this));
+                {
+                    actorProps = Props.Create(() => new Actor<M, P>(actions, asyncActions, MessageFactory, NodeConfig, this));
+                }
                 else
-                    actorProps = 
+                {
+                    Logger.Debug("Deploying remote actor {0} from assembly {1}", actorName, registry.AssemblyName);
+                    actorProps =
                         new ClusterRouterPool(
                             new RoundRobinPool(0),
                             new ClusterRouterPoolSettings(3, 1, false, routeOnRole))
                         .Props(Props.Create<Actor<M, P>>(actorName, registry.AssemblyName));
+                }
                 var actor = ActorSystem.ActorOf(actorProps, actorName);
-                actor.Tell(new RegisterToGlobalDirectory<P>(group.Select(entry => entry.Pattern)));
+                Logger.Debug("Actor {0} created properly, path = {1}", actorName, actor.Path.ToStringWithoutAddress());
+                await RegisterToGlobalDirectory(actor, group.Select(entry => entry.Pattern));
+                Logger.Debug("Actor {0} registered properly", actorName);
             }
+        }
+
+        async Task RegisterToGlobalDirectory(IActorRef actor, IEnumerable<P> patterns)
+        {
+            Mediator.Tell(new Put(actor));
+
+            var actorDirectory = new ActorDirectory<M, P>(ActorSystem, NodeConfig);
+            await actorDirectory.PublishPatterns(actor.Path.ToStringWithoutAddress(), patterns);
         }
     }
 

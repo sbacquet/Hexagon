@@ -17,7 +17,6 @@ namespace Hexagon.AkkaImpl
             public Action<M, ICanReceiveMessage<M>, ICanReceiveMessage<M>, MessageSystem<M, P>> Action;
             public Func<M, ICanReceiveMessage<M>, ICanReceiveMessage<M>, MessageSystem<M, P>, Task> AsyncAction;
             public string Key;
-            public string AssemblyName;
         }
 
         readonly List<MessageRegistryEntry> Registry;
@@ -68,7 +67,7 @@ namespace Hexagon.AkkaImpl
         public static PatternActionsRegistry<M, P> FromAssembly(string assemblyName)
         {
             var assembly = Assembly.Load(assemblyName);
-            var registrationMethod = assembly.GetTypes().SelectMany(type => type.GetMethods(BindingFlags.Static | BindingFlags.Public).Where(method => method.GetCustomAttributes<PatternActionsRegistrationAttribute>(false).Count() > 0)).First();
+            var registrationMethod = assembly.GetTypes().SelectMany(type => type.GetMethods(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.InvokeMethod).Where(method => method.GetCustomAttributes<PatternActionsRegistrationAttribute>(false).Count() > 0)).First();
             PatternActionsRegistry<M, P> registry = new PatternActionsRegistry<M, P>();
             registrationMethod.Invoke(null, new[] { registry });
             return registry;

@@ -7,6 +7,7 @@ using Akka;
 using Akka.Actor;
 using Akka.TestKit.Xunit2;
 using Xunit;
+using FluentAssertions;
 
 namespace Hexagon.AkkaImpl.UnitTests
 {
@@ -94,19 +95,23 @@ namespace Hexagon.AkkaImpl.UnitTests
                 new ActorRefMessageReceiver<XmlMessage>(actor1)
                 .Ask(XmlMessage.FromString("<message>test</message>"), messageFactory)
                 .Result;
-            Assert.True(r.Match(@"message[. = ""OK!""]"));
+            r.Match(@"message[. = ""OK!""]").Should().BeTrue();
         }
 
         [PatternActionsRegistration]
-        public static void Register(PatternActionsRegistry<XmlMessage, XmlMessagePattern> registry)
+        static void Register(PatternActionsRegistry<XmlMessage, XmlMessagePattern> registry)
         {
-            registry.Add(new XmlMessagePattern(new string[] { "*" }), (m, sender, self, _) => { }, "actor");
+            registry.Add(new XmlMessagePattern("*"), (m, sender, self, _) => { }, "actor");
         }
 
         [Fact]
         public void ActorFromAssembly()
         {
             var registry = PatternActionsRegistry<XmlMessage, XmlMessagePattern>.FromAssembly(System.Reflection.Assembly.GetExecutingAssembly().GetName().FullName);
+            var lookup = registry.LookupByKey();
+            lookup.Contains("actor").Should().BeTrue();
+            lookup["actor"].Count().Should().Be(1);
+            lookup["actor"].First().Pattern.Conjuncts[0].Should().Be("*");
         }
     }
 }
