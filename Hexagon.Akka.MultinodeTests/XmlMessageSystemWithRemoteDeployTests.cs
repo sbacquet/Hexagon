@@ -79,7 +79,7 @@ namespace Hexagon.AkkaImpl.MultinodeTests
                 Cluster.Join(Node(to).Address);
                 var nodeConfig = new NodeConfig(from.Name);
                 if (from.Name == "deployer")
-                    nodeConfig.SetActorProps("routed", new NodeConfig.ActorProps { RouteOnRole = "routeHere" });
+                    nodeConfig.SetActorProps("routed", new NodeConfig.ActorProps { RouteOnRole = "routeHere", TotalMaxRoutees = 3, AllowLocalRoutee = true });
                 _messageSystem = new XmlMessageSystem(this.Sys, nodeConfig);
             }, from);
             EnterBarrier(from.Name + "-joined");

@@ -222,7 +222,8 @@ namespace Hexagon.AkkaImpl
                 string actorName = group.Key;
                 var (actions, asyncActions) = GetActions(group.AsEnumerable());
 
-                string routeOnRole = NodeConfig.GetActorProps(actorName)?.RouteOnRole;
+                var props = NodeConfig.GetActorProps(actorName);
+                string routeOnRole = props?.RouteOnRole;
                 Props actorProps;
                 if (routeOnRole == null)
                 {
@@ -234,7 +235,7 @@ namespace Hexagon.AkkaImpl
                     actorProps =
                         new ClusterRouterPool(
                             new RoundRobinPool(0),
-                            new ClusterRouterPoolSettings(3, 1, true, routeOnRole))
+                            new ClusterRouterPoolSettings(props.TotalMaxRoutees, props.MaxRouteesPerNode, props.AllowLocalRoutee, routeOnRole))
                         .Props(Props.Create<Actor<M, P>>(actorName, registry.AssemblyName));
                 }
                 var actor = ActorSystem.ActorOf(actorProps, actorName);

@@ -12,11 +12,14 @@ namespace Hexagon.AkkaImpl
 {
     public class NodeConfig
     {
-        public struct ActorProps
+        public class ActorProps
         {
-            public bool Untrustworthy;
-            public int MistrustFactor;
-            public string RouteOnRole;
+            public bool Untrustworthy = false;
+            public int MistrustFactor = 1;
+            public string RouteOnRole = null;
+            public int TotalMaxRoutees = 1;
+            public int MaxRouteesPerNode = 1;
+            public bool AllowLocalRoutee = false;
         }
         Dictionary<string, ActorProps> ActorsProps = new Dictionary<string, ActorProps>();
         public readonly string NodeId;
@@ -40,9 +43,9 @@ namespace Hexagon.AkkaImpl
 
         public string GetFullActorName(string actorName) => $"{NodeId}:{actorName}";
 
-        public ActorProps? GetActorProps(string actorName)
+        public ActorProps GetActorProps(string actorName)
         {
-            return ActorsProps.TryGetValue(actorName, out ActorProps props) ? new Nullable<ActorProps>(props) : null;
+            return ActorsProps.TryGetValue(actorName, out ActorProps props) ? props : null;
         }
 
         public int GetMistrustFactor(string actorName) => GetActorProps(actorName)?.MistrustFactor ?? 1;
