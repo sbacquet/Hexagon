@@ -39,13 +39,14 @@ namespace Hexagon.AkkaImpl.MultinodeTests
                     akka.loglevel = DEBUG
                     akka.test.timefactor = 1
                     akka.log-config-on-start = on
+                    akka.cluster.roles = [ ""routeHere"" ]
                 ")
                 .WithFallback(MultiNodeClusterSpec.ClusterConfig())
                 .WithFallback(DistributedData.DefaultConfig())
                 .WithFallback(DistributedPubSub.DefaultConfig());
 
-            var roleConfig = ConfigurationFactory.ParseString($@"akka.cluster.roles = [ ""routeHere"" ]");
-            NodeConfig(new[] { DeployTarget1, DeployTarget2 }, new[] { roleConfig });
+            //var roleConfig = ConfigurationFactory.ParseString($@"akka.cluster.roles = [ ""routeHere"" ]");
+            //NodeConfig(new[] { DeployTarget1, DeployTarget2 }, new[] { roleConfig });
         }
     }
 
@@ -130,9 +131,13 @@ namespace Hexagon.AkkaImpl.MultinodeTests
                     _messageSystem.Start(_registry);
                     _messageSystem.SendMessage(XmlMessage.FromString(@"<question>1</question>"), new ActorRefMessageReceiver<XmlMessage>(TestActor));
                     _messageSystem.SendMessage(XmlMessage.FromString(@"<question>2</question>"), new ActorRefMessageReceiver<XmlMessage>(TestActor));
+                    _messageSystem.SendMessage(XmlMessage.FromString(@"<question>3</question>"), new ActorRefMessageReceiver<XmlMessage>(TestActor));
                     var bm1 = ExpectMsg<BytesMessage>();
                     var bm2 = ExpectMsg<BytesMessage>();
+                    var bm3 = ExpectMsg<BytesMessage>();
                     XmlMessage.FromBytes(bm1.Bytes).Content.Should().NotBe(XmlMessage.FromBytes(bm2.Bytes).Content);
+                    XmlMessage.FromBytes(bm1.Bytes).Content.Should().NotBe(XmlMessage.FromBytes(bm3.Bytes).Content);
+                    XmlMessage.FromBytes(bm2.Bytes).Content.Should().NotBe(XmlMessage.FromBytes(bm3.Bytes).Content);
                 }, _deployer);
 
                 EnterBarrier("3-done");
