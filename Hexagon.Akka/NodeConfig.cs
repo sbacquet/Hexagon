@@ -17,6 +17,7 @@ namespace Hexagon.AkkaImpl
             public bool Untrustworthy = false;
             public int MistrustFactor = 1;
             public string RouteOnRole = null;
+            public string Router = "round-robin";
             public int TotalMaxRoutees = 1;
             public int MaxRouteesPerNode = 1;
             public bool AllowLocalRoutee = false;

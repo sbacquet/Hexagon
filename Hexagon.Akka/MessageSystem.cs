@@ -231,10 +231,14 @@ namespace Hexagon.AkkaImpl
                 }
                 else
                 {
-                    Logger.Debug("Deploying remote actor {0} from assembly {1}", actorName, registry.AssemblyName);
+                    Logger.Debug("Deploying remote actor {0} with router {2} from assembly {1}", actorName, registry.AssemblyName, props.Router);
+                    var path = $"akka.actor.router.type-mapping.{props.Router}-pool";
+                    var routerTypeName = ActorSystem.Settings.Config.GetString(path);
+                    var routerType = Type.GetType($"{routerTypeName}, Akka");
+                    var router = (Pool)Activator.CreateInstance(routerType, 0);
                     actorProps =
                         new ClusterRouterPool(
-                            new RoundRobinPool(0),
+                            router,
                             new ClusterRouterPoolSettings(props.TotalMaxRoutees, props.MaxRouteesPerNode, props.AllowLocalRoutee, routeOnRole))
                         .Props(Props.Create<Actor<M, P>>(actorName, registry.AssemblyName));
                 }
