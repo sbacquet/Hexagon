@@ -10,7 +10,9 @@ using Akka.Event;
 using Akka.Routing;
 using Akka.Cluster.Routing;
 using Akka.Configuration;
-//[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("Hexagon.Akka.UnitTests")]
+
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("Hexagon.Akka.UnitTests")]
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("Hexagon.Akka.MultiNodeTests")]
 
 namespace Hexagon.AkkaImpl
 {

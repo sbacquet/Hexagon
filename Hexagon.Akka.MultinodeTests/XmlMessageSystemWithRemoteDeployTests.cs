@@ -107,7 +107,10 @@ namespace Hexagon.AkkaImpl.MultinodeTests
         {
             registry.Add(
                 new XmlMessagePattern(@"/question"),
-                (m, sender, self, ms) => sender.Tell(XmlMessage.FromString(@"<answer></answer>"), self),
+                (m, sender, self, ms) =>
+                {
+                    sender.Tell(XmlMessage.FromString($@"<answer>{((ActorRefMessageReceiver<XmlMessage>)self).Actor.Path}</answer>"), self);
+                },
                 "routed");
         }
 
@@ -127,8 +130,9 @@ namespace Hexagon.AkkaImpl.MultinodeTests
                     _messageSystem.Start(_registry);
                     _messageSystem.SendMessage(XmlMessage.FromString(@"<question>1</question>"), new ActorRefMessageReceiver<XmlMessage>(TestActor));
                     _messageSystem.SendMessage(XmlMessage.FromString(@"<question>2</question>"), new ActorRefMessageReceiver<XmlMessage>(TestActor));
-                    ExpectMsg<BytesMessage>();
-                    ExpectMsg<BytesMessage>();
+                    var bm1 = ExpectMsg<BytesMessage>();
+                    var bm2 = ExpectMsg<BytesMessage>();
+                    XmlMessage.FromBytes(bm1.Bytes).Content.Should().NotBe(XmlMessage.FromBytes(bm2.Bytes).Content);
                 }, _deployer);
 
                 EnterBarrier("3-done");
