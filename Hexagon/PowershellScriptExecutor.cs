@@ -25,8 +25,16 @@ namespace Hexagon
                 // use "AddParameter" to add a single parameter to the last command/script on the pipeline.
                 powerShellInstance.AddParameters(parameters.ToDictionary(nameAndValue => nameAndValue.Item1, nameAndValue => nameAndValue.Item2));
 
-                Collection<PSObject> psOutput = powerShellInstance.Invoke();
-                return psOutput.Select(output => output.BaseObject);
+                try
+                {
+                    Collection<PSObject> psOutput = powerShellInstance.Invoke();
+                    return psOutput.Select(output => output.BaseObject);
+                }
+                catch (Exception ex)
+                {
+                    Collection<PSObject> output = new Collection<PSObject>();
+                    return output;
+                }
             }
         }
     }

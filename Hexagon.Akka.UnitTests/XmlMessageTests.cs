@@ -23,18 +23,22 @@ namespace Hexagon.AkkaImpl.UnitTests
         public void AnActorCanTellAnotherOne()
         {
             var messageFactory = new XmlMessageFactory();
-            var a1 = new XmlActor.ActionWithFilter(
-                (message, sender, self, _) => TestActor.Tell(XmlMessage.FromString("<message>done</message>")), 
-                AlwaysTrue);
+            var a1 = new XmlActor.ActionWithFilter
+            {
+                Action = (message, sender, self, _) => TestActor.Tell(XmlMessage.FromString("<message>done</message>")),
+                Filter = AlwaysTrue
+            };
             var actor1 = Sys.ActorOf(Props.Create(() => new XmlActor(
                 new [] { a1 },
                 null,
                 messageFactory,
                 _nodeConfig,
                 null)), "actor1");
-            var a2 = new XmlActor.ActionWithFilter(
-                (message, sender, self, _) => actor1.Tell(XmlMessage.FromString("<message>OK received</message>")), 
-                AlwaysTrue);
+            var a2 = new XmlActor.ActionWithFilter
+            {
+                Action = (message, sender, self, _) => actor1.Tell(XmlMessage.FromString("<message>OK received</message>")),
+                Filter = AlwaysTrue
+            };
             var actor2 = Sys.ActorOf(Props.Create(() => new XmlActor(
                 new [] { a2 },
                 null,
@@ -49,17 +53,20 @@ namespace Hexagon.AkkaImpl.UnitTests
         public void AnActorCanAskAnotherOne()
         {
             var messageFactory = new XmlMessageFactory();
-            var a1 = new XmlActor.ActionWithFilter(
-                (message, sender, self, _) => sender.Tell(XmlMessage.FromString("<message>OK!</message>"), self),
-                AlwaysTrue);
+            var a1 = new XmlActor.ActionWithFilter
+            {
+                Action = (message, sender, self, _) => sender.Tell(XmlMessage.FromString("<message>OK!</message>"), self),
+                Filter = AlwaysTrue
+            };
             var actor1 = Sys.ActorOf(Props.Create(() => new XmlActor(
                 new[] { a1 },
                 null,
                 messageFactory,
                 _nodeConfig,
                 null)), "actor1");
-            var a2 = new XmlActor.AsyncActionWithFilter(
-                async (message, sender, self, _) =>
+            var a2 = new XmlActor.AsyncActionWithFilter
+            {
+                Action = async (message, sender, self, _) =>
                 {
                     var r = await
                         new ActorRefMessageReceiver<XmlMessage>(actor1)
@@ -67,7 +74,8 @@ namespace Hexagon.AkkaImpl.UnitTests
                     Assert.Equal("<message>OK!</message>", r.Content);
                     TestActor.Tell(XmlMessage.FromString("<message>done</message>"));
                 },
-                AlwaysTrue);
+                Filter = AlwaysTrue
+            };
             var actor2 = Sys.ActorOf(Props.Create(() => new XmlActor(
                 null,
                 new[] { a2 },
@@ -81,9 +89,11 @@ namespace Hexagon.AkkaImpl.UnitTests
         [Fact]
         public void AnActorCanBeAskedFromOutside()
         {
-            var a1 = new XmlActor.ActionWithFilter(
-                (message, sender, self, _) => sender.Tell(XmlMessage.FromString("<message>OK!</message>"), self),
-                AlwaysTrue);
+            var a1 = new XmlActor.ActionWithFilter
+            {
+                Action = (message, sender, self, _) => sender.Tell(XmlMessage.FromString("<message>OK!</message>"), self),
+                Filter = AlwaysTrue
+            };
             var messageFactory = new XmlMessageFactory();
             var actor1 = Sys.ActorOf(Props.Create(() => new XmlActor(
                 new[] { a1 },
@@ -101,7 +111,7 @@ namespace Hexagon.AkkaImpl.UnitTests
         [PatternActionsRegistration]
         static void Register(PatternActionsRegistry<XmlMessage, XmlMessagePattern> registry)
         {
-            registry.Add(new XmlMessagePattern("*"), (m, sender, self, _) => { }, "actor");
+            registry.AddAction(new XmlMessagePattern("*"), (m, sender, self, _) => { }, "actor");
         }
 
         [Fact]

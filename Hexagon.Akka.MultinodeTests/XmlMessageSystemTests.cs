@@ -103,7 +103,7 @@ namespace Hexagon.AkkaImpl.MultinodeTests
             {
                 RunOn(() =>
                 {
-                    _registry.Add(
+                    _registry.AddAsyncAction(
                         new XmlMessagePattern($@"/request[@routeto = ""{_first.Name}""]"),
                         async (message, sender, self, messageSystem) =>
                         {
@@ -116,17 +116,18 @@ namespace Hexagon.AkkaImpl.MultinodeTests
 
                 RunOn(() =>
                 {
-                    _registry.Add(
-                        new XmlMessagePattern(true, "/request"),
+                    _registry.AddAction(
+                        new XmlMessagePattern(true, @"/request"),
                         (message, sender, self, messageSystem) =>
                         {
                             TestActor.Tell("OK");
                         },
                         _second.Name);
-                    _registry.Add(
+                    _registry.AddPowershellScript(
                         new XmlMessagePattern(@"/question[. = ""Why?""]"),
-                        (message, sender, self, messageSystem) => sender.Tell(XmlMessage.FromString(@"<answer>Because.</answer>"), self),
-                        _second.Name);
+                        @"$sender.Tell([Hexagon.XmlMessage]::FromString(""<answer>Because.</answer>""), $self)",
+                        _second.Name
+                        );
                 }, _second);
 
                 _messageSystem.Start(_registry);

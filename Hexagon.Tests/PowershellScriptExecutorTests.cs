@@ -13,10 +13,12 @@ namespace Hexagon.Tests
         [TestMethod]
         public void Test1()
         {
-            var ps = new PowershellScriptExecutor();
-            string script = @"param($param1) ""param1 = $param1""";
-            var outputs = ps.Execute(script, ("param1", 3));
-            Assert.AreEqual("param1 = 3", outputs.First());
+            var output = new PowershellScriptExecutor().Execute(
+                            "param($message, $sender, $self, $messageSystem) " + "$message",
+                            ("message", XmlMessage.FromString("<ok></ok>")),
+                            ("sender", "sender"),
+                            ("self", "self"),
+                            ("messageSystem", "messageSystem"));
         }
     }
 }

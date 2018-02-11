@@ -106,7 +106,7 @@ namespace Hexagon.AkkaImpl.MultinodeTests
         [PatternActionsRegistration]
         static void Register(PatternActionsRegistry<XmlMessage, XmlMessagePattern> registry)
         {
-            registry.Add(
+            registry.AddAction(
                 new XmlMessagePattern(@"/question"),
                 (m, sender, self, ms) =>
                 {

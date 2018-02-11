@@ -12,24 +12,20 @@ namespace Hexagon.AkkaImpl
     {
         public class ActionWithFilter
         {
-            public ActionWithFilter(Action<M, ActorRefMessageReceiver<M>, ActorRefMessageReceiver<M>, MessageSystem<M, P>> action, Predicate<M> filter)
-            {
-                Action = action;
-                Filter = filter;
-            }
-            public readonly Action<M, ActorRefMessageReceiver<M>, ActorRefMessageReceiver<M>, MessageSystem<M, P>> Action;
-            public readonly Predicate<M> Filter;
+            public Action<M, ActorRefMessageReceiver<M>, ActorRefMessageReceiver<M>, MessageSystem<M, P>> Action;
+            public Predicate<M> Filter;
         }
 
         public class AsyncActionWithFilter
         {
-            public AsyncActionWithFilter(Func<M, ActorRefMessageReceiver<M>, ActorRefMessageReceiver<M>, MessageSystem<M, P>, Task> action, Predicate<M> filter)
-            {
-                Action = action;
-                Filter = filter;
-            }
-            public readonly Func<M, ActorRefMessageReceiver<M>, ActorRefMessageReceiver<M>, MessageSystem<M, P>, Task> Action;
-            public readonly Predicate<M> Filter;
+            public Func<M, ActorRefMessageReceiver<M>, ActorRefMessageReceiver<M>, MessageSystem<M, P>, Task> Action;
+            public Predicate<M> Filter;
+        }
+
+        public class ScriptWithPattern
+        {
+            public string Script;
+            public P Pattern;
         }
 
         public Actor(IEnumerable<ActionWithFilter> actions, IEnumerable<AsyncActionWithFilter> asyncActions, IMessageFactory<M> factory, NodeConfig nodeConfig, MessageSystem<M, P> messageSystem)

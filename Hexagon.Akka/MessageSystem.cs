@@ -201,17 +201,30 @@ namespace Hexagon.AkkaImpl
                 registryEntries
                 .Where(entry => entry.Action != null)
                 .Select(entry =>
-                    new Actor<M, P>.ActionWithFilter(
-                        entry.Action,
-                        filter(entry)));
+                    new Actor<M, P>.ActionWithFilter
+                    {
+                        Action = entry.Action,
+                        Filter = filter(entry)
+                    });
+            var powershellActions =
+                registryEntries
+                .Where(entry => entry.CodeType == EActionType.PowershellScript)
+                .Select(entry =>
+                    new Actor<M, P>.ActionWithFilter
+                    {
+                        Action = PowershellScriptToAction(entry.Script),
+                        Filter = filter(entry)
+                    });
             var asyncActions =
                 registryEntries
                 .Where(entry => entry.AsyncAction != null)
                 .Select(entry =>
-                    new Actor<M, P>.AsyncActionWithFilter(
-                        entry.AsyncAction,
-                        filter(entry)));
-            return (actions, asyncActions);
+                    new Actor<M, P>.AsyncActionWithFilter
+                    {
+                        Action = entry.AsyncAction,
+                        Filter = filter(entry)
+                    });
+            return (actions.Union(powershellActions), asyncActions);
         }
 
         private async Task CreateActors(PatternActionsRegistry<M, P> registry)
@@ -220,13 +233,13 @@ namespace Hexagon.AkkaImpl
             foreach (var group in groups)
             {
                 string actorName = group.Key;
-                var (actions, asyncActions) = GetActions(group.AsEnumerable());
 
                 var props = NodeConfig.GetActorProps(actorName);
                 string routeOnRole = props?.RouteOnRole;
                 Props actorProps;
                 if (routeOnRole == null)
                 {
+                    var (actions, asyncActions) = GetActions(group.AsEnumerable());
                     actorProps = Props.Create(() => new Actor<M, P>(actions, asyncActions, MessageFactory, NodeConfig, this));
                 }
                 else
@@ -256,6 +269,25 @@ namespace Hexagon.AkkaImpl
             var actorDirectory = new ActorDirectory<M, P>(ActorSystem, NodeConfig);
             await actorDirectory.PublishPatterns(actor.Path.ToStringWithoutAddress(), patterns);
         }
+
+        static Action<M, ICanReceiveMessage<M>, ICanReceiveMessage<M>, MessageSystem<M, P>> PowershellScriptToAction(string script)
+            => (message, sender, self, messageSystem) =>
+            {
+                var outputs = new PowershellScriptExecutor().Execute(
+                    "param($message, $sender, $self, $messageSystem) " + script,
+                    ("message", message),
+                    ("sender", sender),
+                    ("self", self),
+                    ("messageSystem", messageSystem));
+                if (messageSystem != null && messageSystem.Logger.IsDebugEnabled)
+                {
+                    if (outputs != null)
+                    {
+                        foreach (var output in outputs)
+                            messageSystem.Logger.Debug(@"Powershell script output: {0}", output);
+                    }
+                }
+            };
     }
 
     public class XmlMessageSystem : MessageSystem<XmlMessage, XmlMessagePattern>
