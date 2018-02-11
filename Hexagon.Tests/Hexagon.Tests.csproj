@@ -54,6 +54,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="JsonMessageTests.cs" />
+    <Compile Include="PowershellScriptExecutorTests.cs" />
     <Compile Include="XmlMessageTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
