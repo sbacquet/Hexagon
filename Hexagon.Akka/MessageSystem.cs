@@ -212,7 +212,7 @@ namespace Hexagon.AkkaImpl
                 .Select(entry =>
                     new Actor<M, P>.ActionWithFilter
                     {
-                        Action = PowershellScriptToAction(entry.Code),
+                        Action = PowershellScriptToAction(entry.Code, !entry.Pattern.IsSecondary),
                         Filter = filter(entry)
                     });
             var asyncActions =
@@ -284,19 +284,27 @@ namespace Hexagon.AkkaImpl
             await actorDirectory.PublishPatterns(actor.Path.ToStringWithoutAddress(), patterns);
         }
 
-        static Action<M, ICanReceiveMessage<M>, ICanReceiveMessage<M>, MessageSystem<M, P>> PowershellScriptToAction(string script)
+        static Action<M, ICanReceiveMessage<M>, ICanReceiveMessage<M>, MessageSystem<M, P>> PowershellScriptToAction(string script, bool respondWithOutput)
             => (message, sender, self, messageSystem) =>
             {
                 var outputs = new PowershellScriptExecutor().Execute(
                     script,
                     ("message", message.ToString()),
-                    ("sender", sender),
-                    ("self", self),
+                    ("sender", sender as ActorRefMessageReceiver<M>),
+                    ("self", self as ActorRefMessageReceiver<M>),
                     ("messageSystem", messageSystem));
                 if (outputs != null)
                 {
-                    foreach (var output in outputs)
-                        sender.Tell(messageSystem.MessageFactory.FromString(output.ToString()), self);
+                    if (respondWithOutput)
+                    {
+                        foreach (var output in outputs)
+                            sender.Tell(messageSystem.MessageFactory.FromString(output.ToString()), self);
+                    }
+                    else if (MessageSystem<M, P>.Instance.Logger.IsDebugEnabled)
+                    {
+                        foreach (var output in outputs)
+                            MessageSystem<M, P>.Instance.Logger.Debug("powershell output: {0}", output);
+                    }
                 }
             };
     }

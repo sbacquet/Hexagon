@@ -114,6 +114,10 @@ namespace Hexagon.AkkaImpl.MultinodeTests
                 new XmlMessagePattern(@"/question2"),
                 @"'<answer2>{0}</answer2>' -f $self.Path",
                 "routed");
+            registry.AddPowershellScriptBody(
+                new XmlMessagePattern(true, @"/question2"),
+                @"$xml = [xml]$message; $xml.question2",
+                "monitor");
         }
 
         void XmlMessageSystem_must_work()
@@ -136,9 +140,9 @@ namespace Hexagon.AkkaImpl.MultinodeTests
                     _messageSystem.SendMessage(XmlMessage.FromString(@"<question1></question1>"), sender);
                     new[] { ExpectMsg<BytesMessage>(), ExpectMsg<BytesMessage>(), ExpectMsg<BytesMessage>() }.Select(bm => XmlMessage.FromBytes(bm.Bytes).Content)
                     .Should().OnlyHaveUniqueItems();
-                    _messageSystem.SendMessage(XmlMessage.FromString(@"<question2></question2>"), sender);
-                    _messageSystem.SendMessage(XmlMessage.FromString(@"<question2></question2>"), sender);
-                    _messageSystem.SendMessage(XmlMessage.FromString(@"<question2></question2>"), sender);
+                    _messageSystem.SendMessage(XmlMessage.FromString(@"<question2>log1</question2>"), sender);
+                    _messageSystem.SendMessage(XmlMessage.FromString(@"<question2>log2</question2>"), sender);
+                    _messageSystem.SendMessage(XmlMessage.FromString(@"<question2>log3</question2>"), sender);
                     new[] { ExpectMsg<BytesMessage>(), ExpectMsg<BytesMessage>(), ExpectMsg<BytesMessage>() }.Select(bm => XmlMessage.FromBytes(bm.Bytes).Content)
                     .Should().OnlyHaveUniqueItems();
                 }, _deployer);
