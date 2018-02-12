@@ -25,12 +25,14 @@ namespace Hexagon
     {
         void Tell(M message, ICanReceiveMessage<M> sender);
         Task<M> Ask(M message, IMessageFactory<M> factory, TimeSpan? timeout = null, System.Threading.CancellationToken? cancellationToken = null);
+        string Path { get; }
     }
     public interface IMessagePattern<M>
     {
         string[] Conjuncts { get; }
         bool IsSecondary { get; }
         bool Match(M message);
+        (string[], bool) ToTuple();
     }
     public interface IMessagePatternFactory<P>
     {

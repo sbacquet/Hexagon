@@ -44,9 +44,6 @@ namespace Hexagon.AkkaImpl.MultinodeTests
                 .WithFallback(MultiNodeClusterSpec.ClusterConfig())
                 .WithFallback(DistributedData.DefaultConfig())
                 .WithFallback(DistributedPubSub.DefaultConfig());
-
-            //var roleConfig = ConfigurationFactory.ParseString($@"akka.cluster.roles = [ ""routeHere"" ]");
-            //NodeConfig(new[] { DeployTarget1, DeployTarget2 }, new[] { roleConfig });
         }
     }
 
@@ -104,20 +101,24 @@ namespace Hexagon.AkkaImpl.MultinodeTests
         }
 
         [PatternActionsRegistration]
-        static void Register(PatternActionsRegistry<XmlMessage, XmlMessagePattern> registry)
+        static void RegisterActions(PatternActionsRegistry<XmlMessage, XmlMessagePattern> registry)
         {
             registry.AddAction(
-                new XmlMessagePattern(@"/question"),
+                new XmlMessagePattern(@"/question1"),
                 (m, sender, self, ms) =>
                 {
-                    sender.Tell(XmlMessage.FromString($@"<answer>{((ActorRefMessageReceiver<XmlMessage>)self).Actor.Path}</answer>"), self);
+                    sender.Tell(XmlMessage.FromString($@"<answer1>{((ActorRefMessageReceiver<XmlMessage>)self).Actor.Path}</answer1>"), self);
                 },
+                "routed");
+            registry.AddPowershellScriptBody(
+                new XmlMessagePattern(@"/question2"),
+                @"'<answer2>{0}</answer2>' -f $self.Path",
                 "routed");
         }
 
         void XmlMessageSystem_must_work()
         {
-            Within(TimeSpan.FromSeconds(30), () =>
+            Within(TimeSpan.FromSeconds(60), () =>
             {
                 RunOn(() =>
                 {
@@ -127,17 +128,19 @@ namespace Hexagon.AkkaImpl.MultinodeTests
 
                 RunOn(() =>
                 {
-                    Register(_registry);
+                    RegisterActions(_registry);
                     _messageSystem.Start(_registry);
-                    _messageSystem.SendMessage(XmlMessage.FromString(@"<question>1</question>"), new ActorRefMessageReceiver<XmlMessage>(TestActor));
-                    _messageSystem.SendMessage(XmlMessage.FromString(@"<question>2</question>"), new ActorRefMessageReceiver<XmlMessage>(TestActor));
-                    _messageSystem.SendMessage(XmlMessage.FromString(@"<question>3</question>"), new ActorRefMessageReceiver<XmlMessage>(TestActor));
-                    var bm1 = ExpectMsg<BytesMessage>();
-                    var bm2 = ExpectMsg<BytesMessage>();
-                    var bm3 = ExpectMsg<BytesMessage>();
-                    XmlMessage.FromBytes(bm1.Bytes).Content.Should().NotBe(XmlMessage.FromBytes(bm2.Bytes).Content);
-                    XmlMessage.FromBytes(bm1.Bytes).Content.Should().NotBe(XmlMessage.FromBytes(bm3.Bytes).Content);
-                    XmlMessage.FromBytes(bm2.Bytes).Content.Should().NotBe(XmlMessage.FromBytes(bm3.Bytes).Content);
+                    var sender = new ActorRefMessageReceiver<XmlMessage>(TestActor);
+                    _messageSystem.SendMessage(XmlMessage.FromString(@"<question1></question1>"), sender);
+                    _messageSystem.SendMessage(XmlMessage.FromString(@"<question1></question1>"), sender);
+                    _messageSystem.SendMessage(XmlMessage.FromString(@"<question1></question1>"), sender);
+                    new[] { ExpectMsg<BytesMessage>(), ExpectMsg<BytesMessage>(), ExpectMsg<BytesMessage>() }.Select(bm => XmlMessage.FromBytes(bm.Bytes).Content)
+                    .Should().OnlyHaveUniqueItems();
+                    _messageSystem.SendMessage(XmlMessage.FromString(@"<question2></question2>"), sender);
+                    _messageSystem.SendMessage(XmlMessage.FromString(@"<question2></question2>"), sender);
+                    _messageSystem.SendMessage(XmlMessage.FromString(@"<question2></question2>"), sender);
+                    new[] { ExpectMsg<BytesMessage>(), ExpectMsg<BytesMessage>(), ExpectMsg<BytesMessage>() }.Select(bm => XmlMessage.FromBytes(bm.Bytes).Content)
+                    .Should().OnlyHaveUniqueItems();
                 }, _deployer);
 
                 EnterBarrier("3-done");

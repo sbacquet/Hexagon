@@ -31,5 +31,7 @@ namespace Hexagon.AkkaImpl
                     Mediator.Ask<BytesMessage>(new Send(ActorPath, new BytesMessage(message.Bytes)), timeout);
             return await bytesMessageTask.ContinueWith<M>(task => factory.FromBytes(task.Result.Bytes));
         }
+
+        public string Path => ActorPath;
     }
 }

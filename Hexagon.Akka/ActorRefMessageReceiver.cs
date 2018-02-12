@@ -33,6 +33,8 @@ namespace Hexagon.AkkaImpl
                     Actor.Ask<BytesMessage>(new BytesMessage(message.Bytes), timeout);
             return await bytesMessageTask.ContinueWith<M>(task => factory.FromBytes(task.Result.Bytes));
         }
+
+        public string Path => Actor.Path.ToString();
     }
 
     public class ReadOnlyActorRefMessageReceiver<M> : ActorRefMessageReceiver<M>

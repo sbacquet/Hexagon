@@ -26,5 +26,7 @@ namespace Hexagon
         {
             return Conjuncts.All(path => message.AsJObject().SelectToken(path) != null);
         }
+
+        public (string[], bool) ToTuple() => (Conjuncts, IsSecondary);
     }
 }

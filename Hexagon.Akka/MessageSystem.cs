@@ -199,7 +199,7 @@ namespace Hexagon.AkkaImpl
             Func<PatternActionsRegistry<M, P>.MessageRegistryEntry, Predicate<M>> filter = (registryEntries.Count() == 1 ? NoFilterEntry : FilterEntry);
             var actions =
                 registryEntries
-                .Where(entry => entry.Action != null)
+                .Where(entry => entry.CodeType == EActionType.Code && entry.Action != null)
                 .Select(entry =>
                     new Actor<M, P>.ActionWithFilter
                     {
@@ -212,12 +212,12 @@ namespace Hexagon.AkkaImpl
                 .Select(entry =>
                     new Actor<M, P>.ActionWithFilter
                     {
-                        Action = PowershellScriptToAction(entry.Script),
+                        Action = PowershellScriptToAction(entry.Code),
                         Filter = filter(entry)
                     });
             var asyncActions =
                 registryEntries
-                .Where(entry => entry.AsyncAction != null)
+                .Where(entry => entry.CodeType == EActionType.Code && entry.AsyncAction != null)
                 .Select(entry =>
                     new Actor<M, P>.AsyncActionWithFilter
                     {
@@ -244,22 +244,36 @@ namespace Hexagon.AkkaImpl
                 }
                 else
                 {
-                    Logger.Debug("Deploying remote actor {0} with router {2} from assembly {1}", actorName, registry.AssemblyName, props.Router);
-                    var path = $"akka.actor.router.type-mapping.{props.Router}-pool";
-                    var routerTypeName = ActorSystem.Settings.Config.GetString(path);
-                    var routerType = Type.GetType($"{routerTypeName}, Akka");
-                    var router = (Pool)Activator.CreateInstance(routerType, 0);
+                    Logger.Debug("Deploying remote actor {0} with router {1}", actorName, props.Router);
                     actorProps =
                         new ClusterRouterPool(
-                            router,
+                            GetRouterPool(props.Router),
                             new ClusterRouterPoolSettings(props.TotalMaxRoutees, props.MaxRouteesPerNode, props.AllowLocalRoutee, routeOnRole))
-                        .Props(Props.Create<Actor<M, P>>(actorName, registry.AssemblyName));
+                        .Props(
+                            Props.Create<Actor<M, P>>(
+                                actorName, 
+                                group
+                                .Select(
+                                    entry => 
+                                    (entry.CodeType, 
+                                    (entry.CodeType != EActionType.Code ? entry.Pattern.ToTuple() : (new string[] { }, false)), 
+                                    entry.Code))
+                                .Distinct()
+                                .ToArray()));
                 }
                 var actor = ActorSystem.ActorOf(actorProps, actorName);
                 Logger.Debug("Actor {0} created properly, path = {1}", actorName, actor.Path.ToStringWithoutAddress());
                 await RegisterToGlobalDirectory(actor, group.Select(entry => entry.Pattern));
                 Logger.Debug("Actor {0} registered properly", actorName);
             }
+        }
+
+        Pool GetRouterPool(string routerName)
+        {
+            var path = $"akka.actor.router.type-mapping.{routerName}-pool";
+            var routerTypeName = ActorSystem.Settings.Config.GetString(path);
+            var routerType = Type.GetType($"{routerTypeName}, Akka");
+            return (Pool)Activator.CreateInstance(routerType, 0);
         }
 
         async Task RegisterToGlobalDirectory(IActorRef actor, IEnumerable<P> patterns)

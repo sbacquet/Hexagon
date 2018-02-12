@@ -34,5 +34,7 @@ namespace Hexagon
             string secondaryString = IsSecondary ? " (secondary)" : "";
             return conjunctsString + secondaryString;
         }
+
+        public (string[], bool) ToTuple() => (Conjuncts, IsSecondary);
     }
 }
