@@ -123,9 +123,9 @@ namespace Hexagon.AkkaImpl.MultinodeTests
                             TestActor.Tell("OK");
                         },
                         _second.Name);
-                    _registry.AddPowershellScript(
+                    _registry.AddPowershellScriptBody(
                         new XmlMessagePattern(@"/question[. = ""Why?""]"),
-                        @"$sender.Tell([Hexagon.XmlMessage]::FromString(""<answer>Because.</answer>""), $self)",
+                        @"'<answer>Because.</answer>'",
                         _second.Name
                         );
                 }, _second);

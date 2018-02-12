@@ -67,7 +67,12 @@ namespace Hexagon.AkkaImpl
             AssemblyName = Assembly.GetCallingAssembly().GetName().FullName;
         }
 
-        public void AddPowershellScript(P pattern, string script, string key)
+        public void AddPowershellScript(P pattern, System.Management.Automation.ScriptBlock script, string key)
+        {
+            AddPowershellScript(pattern, script.ToString(), key);
+        }
+
+        void AddPowershellScript(P pattern, string script, string key)
         {
             Registry.Add(new MessageRegistryEntry
             {
@@ -76,6 +81,14 @@ namespace Hexagon.AkkaImpl
                 CodeType = EActionType.PowershellScript,
                 Key = key
             });
+        }
+
+        public void AddPowershellScriptBody(P pattern, string scriptBody, string key)
+        {
+            AddPowershellScript(
+                pattern, 
+                string.Format("param([string]$message, $sender, $self, $messageSystem) {0}", scriptBody), 
+                key);
         }
 
         public ILookup<string, MessageRegistryEntry> LookupByKey()

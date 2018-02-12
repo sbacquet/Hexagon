@@ -18,6 +18,9 @@ namespace Hexagon
 
         public T AsObject<T>() => this.AsJObject().ToObject<T>();
 
+        public System.Management.Automation.PSObject AsPSObject<T>()
+            => new System.Management.Automation.PSObject(AsObject<T>());
+
         private JsonMessage()
         {
             _jObject = new Lazy<JObject>(() => JObject.Parse(Content));

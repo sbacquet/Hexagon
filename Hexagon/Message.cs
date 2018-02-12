@@ -19,6 +19,7 @@ namespace Hexagon
     public interface IMessageFactory<M>
     {
         M FromBytes(byte[] bytes);
+        M FromString(string content);
     }
     public interface ICanReceiveMessage<M>
     {

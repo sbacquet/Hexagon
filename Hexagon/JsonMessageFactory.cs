@@ -9,5 +9,6 @@ namespace Hexagon
     public class JsonMessageFactory : IMessageFactory<JsonMessage>
     {
         public JsonMessage FromBytes(byte[] bytes) => JsonMessage.FromBytes(bytes);
+        public JsonMessage FromString(string content) => JsonMessage.FromString(content);
     }
 }

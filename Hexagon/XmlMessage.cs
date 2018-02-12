@@ -25,6 +25,9 @@ namespace Hexagon
             }
         }
 
+        public System.Xml.XmlDocument AsXml()
+            => new System.Xml.XmlDocument { InnerXml = Content };
+
         private XmlMessage()
         {
             _pathNavigable = new Lazy<IXPathNavigable>(() =>
@@ -52,10 +55,12 @@ namespace Hexagon
         public static XmlMessage FromString(string xml)
             => new XmlMessage { Content = xml };
 
+        public static XmlMessage FromXml(System.Xml.XmlDocument xml)
+            => new XmlMessage { Content = xml.InnerXml };
+
         public bool Match(string path)
             => this.AsPathNavigable().CreateNavigator().SelectSingleNode(path) != null;
 
         public override string ToString() => Content;
-
     }
 }

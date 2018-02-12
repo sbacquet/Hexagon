@@ -274,18 +274,15 @@ namespace Hexagon.AkkaImpl
             => (message, sender, self, messageSystem) =>
             {
                 var outputs = new PowershellScriptExecutor().Execute(
-                    "param($message, $sender, $self, $messageSystem) " + script,
-                    ("message", message),
+                    script,
+                    ("message", message.ToString()),
                     ("sender", sender),
                     ("self", self),
                     ("messageSystem", messageSystem));
-                if (messageSystem != null && messageSystem.Logger.IsDebugEnabled)
+                if (outputs != null)
                 {
-                    if (outputs != null)
-                    {
-                        foreach (var output in outputs)
-                            messageSystem.Logger.Debug(@"Powershell script output: {0}", output);
-                    }
+                    foreach (var output in outputs)
+                        sender.Tell(messageSystem.MessageFactory.FromString(output.ToString()), self);
                 }
             };
     }

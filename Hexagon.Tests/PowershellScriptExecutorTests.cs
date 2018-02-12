@@ -11,14 +11,12 @@ namespace Hexagon.Tests
     public class PowershellScriptExecutorTests
     {
         [TestMethod]
-        public void Test1()
+        public void Execute_PS_script_and_get_result()
         {
-            var output = new PowershellScriptExecutor().Execute(
-                            "param($message, $sender, $self, $messageSystem) " + "$message",
-                            ("message", XmlMessage.FromString("<ok></ok>")),
-                            ("sender", "sender"),
-                            ("self", "self"),
-                            ("messageSystem", "messageSystem"));
+            var outputs = new PowershellScriptExecutor().Execute(
+                            "param([string]$param1) $param1",
+                            ("param1", "ok"));
+            Assert.AreEqual("ok", outputs.First());
         }
     }
 }
