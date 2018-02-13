@@ -321,7 +321,7 @@ namespace Hexagon.AkkaImpl
 
         public void Dispose()
         {
-            CoordinatedShutdown.Get(ActorSystem).Run();
+            CoordinatedShutdown.Get(ActorSystem).Run().Wait();
         }
     }
 
