@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net471</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Hexagon.Akka\Hexagon.Akka.csproj" />
+    <ProjectReference Include="..\Hexagon\Hexagon.csproj" />
+  </ItemGroup>
+
+</Project>

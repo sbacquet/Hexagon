@@ -5,3 +5,4 @@ obj/
 packages/
 .vs/
 *.old/
+launchSettings.json

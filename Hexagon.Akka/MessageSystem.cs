@@ -10,13 +10,15 @@ using Akka.Event;
 using Akka.Routing;
 using Akka.Cluster.Routing;
 using Akka.Configuration;
+using System.Configuration;
+using Akka.Configuration.Hocon;
 
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("Hexagon.Akka.UnitTests")]
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("Hexagon.Akka.MultiNodeTests")]
 
 namespace Hexagon.AkkaImpl
 {
-    public class MessageSystem<M, P>
+    public class MessageSystem<M, P> : IDisposable
         where P : IMessagePattern<M>
         where M : IMessage
     {
@@ -43,18 +45,15 @@ namespace Hexagon.AkkaImpl
 
         public MessageSystem(
             string systemName, 
-            Config config, 
             IMessageFactory<M> messageFactory, 
             IMessagePatternFactory<P> patternFactory,
             NodeConfig nodeConfig)
             : this(
-                  null == config ? 
                   ActorSystem.Create(
                       systemName,
-                      ConfigurationFactory.ParseString($@"akka.cluster.roles = [""{nodeConfig.Role}""]")) : 
-                  ActorSystem.Create(
-                      systemName, 
-                      ConfigurationFactory.ParseString($@"akka.cluster.roles = [""{nodeConfig.Role}""]").WithFallback(config)), 
+                      ConfigurationFactory
+                      .ParseString($@"akka.cluster.roles = [{string.Join(",", nodeConfig.Roles)}]")
+                      .WithFallback(DefaultConfig())),
                   messageFactory, 
                   patternFactory,
                   nodeConfig)
@@ -75,6 +74,16 @@ namespace Hexagon.AkkaImpl
             ActorDirectory = new ActorDirectory<M, P>(system, nodeConfig);
 
             Instance = this;
+        }
+
+        public static Config DefaultConfig()
+        {
+            var section = (AkkaConfigurationSection)ConfigurationManager.GetSection("akka");
+            return
+                section.AkkaConfig
+                .WithFallback(ConfigurationFactory.ParseString(@"akka.actor.provider = ""Akka.Cluster.ClusterActorRefProvider, Akka.Cluster"""))
+                .WithFallback(DistributedData.DefaultConfig())
+                .WithFallback(DistributedPubSub.DefaultConfig());
         }
 
         public async void SendMessage(M message, ICanReceiveMessage<M> sender)
@@ -174,13 +183,14 @@ namespace Hexagon.AkkaImpl
                     Logger.Debug(@"Primary receiver(s) of message {0} : {1}", message, string.Join(", ", primaryReceivers.Select(ma => ma.Path)));
                 string mainReceiverPath = GetMainReceiverPath(primaryReceivers);
                 var mainReceiver = new ActorPathMessageReceiver<M>(mainReceiverPath, Mediator);
-                return await mainReceiver.Ask(message, MessageFactory, timeout, cancellationToken);
+                return await mainReceiver.Ask(message, MessageFactory, timeout ?? TimeSpan.FromSeconds(10), cancellationToken);
             }
             return default(M);
         }
 
         public void Start(PatternActionsRegistry<M,P> registry)
         {
+            Logger.Info("Starting the message system...");
             // Initialize mediator
             DistributedPubSub.Get(ActorSystem);
             // Initialize replicator
@@ -189,6 +199,7 @@ namespace Hexagon.AkkaImpl
             CreateActors(registry).Wait();
             // Synchronize other actors
             System.Threading.Thread.Sleep(TimeSpan.FromSeconds(NodeConfig.GossipTimeFrameInSeconds));
+            Logger.Info("Message system started and ready !");
         }
 
         static Func<PatternActionsRegistry<M, P>.MessageRegistryEntry, Predicate<M>> FilterEntry => entry => message => entry.Pattern.Match(message);
@@ -307,14 +318,18 @@ namespace Hexagon.AkkaImpl
                     }
                 }
             };
+
+        public void Dispose()
+        {
+            CoordinatedShutdown.Get(ActorSystem).Run();
+        }
     }
 
     public class XmlMessageSystem : MessageSystem<XmlMessage, XmlMessagePattern>
     {
-        public XmlMessageSystem(Akka.Configuration.Config config, NodeConfig nodeConfig) : 
+        public XmlMessageSystem(NodeConfig nodeConfig) : 
             base(
-                "Finastra-microservices-actor-system-using-XML-messages",
-                config,
+                "XmlCluster",
                 new XmlMessageFactory(),
                 new XmlMessagePatternFactory(),
                 nodeConfig
@@ -335,10 +350,9 @@ namespace Hexagon.AkkaImpl
 
     public class JsonMessageSystem : MessageSystem<JsonMessage, JsonMessagePattern>
     {
-        public JsonMessageSystem(Akka.Configuration.Config config, NodeConfig nodeConfig) : 
+        public JsonMessageSystem(NodeConfig nodeConfig) : 
             base(
-                "Finastra-microservices-actor-system-using-JSON-messages",
-                config,
+                "JsonCluster",
                 new JsonMessageFactory(),
                 new JsonMessagePatternFactory(),
                 nodeConfig

@@ -26,14 +26,14 @@ namespace Hexagon.AkkaImpl
         public readonly string NodeId;
         public readonly double GossipTimeFrameInSeconds;
         public readonly int GossipSynchroAttemptCount;
-        public readonly string Role;
+        public readonly string[] Roles;
 
-        public NodeConfig(string nodeId, string role = null, double gossipTimeFrameInSeconds = 5, int gossipSynchroAttemptCount = 3)
+        public NodeConfig(string nodeId, IEnumerable<string> roles = null, double gossipTimeFrameInSeconds = 5, int gossipSynchroAttemptCount = 3)
         {
             NodeId = nodeId;
             GossipTimeFrameInSeconds = gossipTimeFrameInSeconds;
             GossipSynchroAttemptCount = gossipSynchroAttemptCount;
-            Role = role;
+            Roles = roles == null ? new string[] { } : roles.ToArray();
         }
 
         public static NodeConfig FromFile(string filePath)
