@@ -195,15 +195,24 @@ namespace Hexagon.AkkaImpl
             return default(M);
         }
 
-        public void Start(PatternActionsRegistry<M,P> registry)
+        public void Start(PatternActionsRegistry<M,P> registry = null)
         {
             Logger.Info("Starting the message system...");
             // Initialize mediator
             DistributedPubSub.Get(ActorSystem);
             // Initialize replicator
             DistributedData.Get(ActorSystem);
+            var actionsRegistry = new PatternActionsRegistry<M, P>();
+            actionsRegistry.AddRegistry(registry);
             // Create actors from registry
-            CreateActors(registry).Wait();
+            if (NodeConfig.Assemblies != null)
+            {
+                foreach (var assembly in NodeConfig.Assemblies)
+                {
+                    actionsRegistry.AddActionsFromAssembly(assembly);
+                }
+            }
+            CreateActors(actionsRegistry).Wait();
             // Synchronize other actors
             System.Threading.Thread.Sleep(TimeSpan.FromSeconds(NodeConfig.GossipTimeFrameInSeconds));
             Logger.Info("Message system started and ready !");

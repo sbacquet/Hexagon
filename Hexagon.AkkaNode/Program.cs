@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using CommandLine;
 using Hexagon;
 using Hexagon.AkkaImpl;
+using System.Threading;
 
 namespace Hexagon.AkkaNode
 {
@@ -32,6 +33,8 @@ Roles: {string.Join(", ", Roles)}
     }
     class Program
     {
+        private static readonly ManualResetEvent _quitEvent = new ManualResetEvent(false);
+
         static void Main(params string[] args)
         {
             CommandLine.Parser.Default.ParseArguments<Options>(args)
@@ -42,25 +45,22 @@ Roles: {string.Join(", ", Roles)}
         static void RunOptionsAndReturnExitCode(Options opts)
         {
             Console.WriteLine(opts);
+            Console.CancelKeyPress += (sender, e) =>
+            {
+                _quitEvent.Set();
+                e.Cancel = true;
+            };
 
             if (!opts.Roles.Any() && !opts.Assemblies.Any())
             {
                 Console.WriteLine("ERROR: Either an assembly or a role must be specified.\n");
                 Main("--help");
             }
-            using (var system = new XmlMessageSystem(new NodeConfig(opts.NodeId, opts.Roles)))
+            using (var system = new XmlMessageSystem(new NodeConfig(opts.NodeId, opts.Roles, opts.Assemblies)))
             {
-                PatternActionsRegistry<XmlMessage, XmlMessagePattern> registry = new PatternActionsRegistry<XmlMessage, XmlMessagePattern>();
-                if (opts.Assemblies != null)
-                {
-                    foreach (var assembly in opts.Assemblies)
-                    {
-                        registry.AddActionsFromAssembly(assembly);
-                    }
-                }
-                system.Start(registry);
-                registry = null;
-                Console.ReadKey(true);
+                system.Start();
+                Console.WriteLine("Press Control-C to stop.");
+                _quitEvent.WaitOne();
                 //while (Console.ReadKey(true).Key != ConsoleKey.Enter)
                 //{
                 //    try

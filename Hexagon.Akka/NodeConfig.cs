@@ -26,14 +26,16 @@ namespace Hexagon.AkkaImpl
         public readonly string NodeId;
         public readonly double GossipTimeFrameInSeconds;
         public readonly int GossipSynchroAttemptCount;
-        public readonly string[] Roles;
+        public List<string> Roles { get; private set; }
+        public List<string> Assemblies { get; private set; }
 
-        public NodeConfig(string nodeId, IEnumerable<string> roles = null, double gossipTimeFrameInSeconds = 5, int gossipSynchroAttemptCount = 3)
+        public NodeConfig(string nodeId, IEnumerable<string> roles = null, IEnumerable<string> assemblies = null, double gossipTimeFrameInSeconds = 5, int gossipSynchroAttemptCount = 3)
         {
             NodeId = nodeId;
             GossipTimeFrameInSeconds = gossipTimeFrameInSeconds;
             GossipSynchroAttemptCount = gossipSynchroAttemptCount;
-            Roles = roles == null ? new string[] { } : roles.ToArray();
+            Roles = roles == null ? new List<string>() : roles.ToList();
+            Assemblies = assemblies == null ? new List<string>() : assemblies.ToList();
         }
 
         public static NodeConfig FromFile(string filePath)
@@ -59,5 +61,11 @@ namespace Hexagon.AkkaImpl
                 props.MistrustFactor = 1;
             ActorsProps[actorName] = props;
         }
+
+        public void AddRole(string role) => Roles.Add(role);
+
+        public void AddAssembly(string assembly) => Assemblies.Add(assembly);
+
+        public void AddThisAssembly() => AddAssembly(System.Reflection.Assembly.GetCallingAssembly().GetName().Name);
     }
 }

@@ -30,6 +30,12 @@ namespace Hexagon.AkkaImpl
             Registry = new List<MessageRegistryEntry>();
         }
 
+        public void AddRegistry(PatternActionsRegistry<M, P> registry)
+        {
+            if (registry != null)
+                Registry.AddRange(registry.Registry);
+        }
+
         public void AddAction(P pattern, Action<M, ICanReceiveMessage<M>, ICanReceiveMessage<M>, MessageSystem<M, P>> action, string key)
         {
             Registry.Add(new MessageRegistryEntry
@@ -91,7 +97,7 @@ namespace Hexagon.AkkaImpl
             foreach (var method in registrationMethods)
                 method.Invoke(null, new[] { registry });
             if (filter == null)
-                Registry.AddRange(registry.Registry);
+                AddRegistry(registry);
             else
                 Registry.AddRange(registry.Registry.Where(entry => filter(entry)));
         }
