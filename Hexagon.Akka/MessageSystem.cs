@@ -88,6 +88,7 @@ namespace Hexagon.AkkaImpl
                     akka.remote.dot-netty.tcp.port = 0
                     akka.cluster.pub-sub.role = {cNodeRoleName}
                     akka.cluster.distributed-data.role = {cNodeRoleName}
+                    akka.cluster.distributed-data.pruning-interval = 0    # temporary (pruning bug)
                 "))
                 .WithFallback(DistributedData.DefaultConfig())
                 .WithFallback(DistributedPubSub.DefaultConfig());
