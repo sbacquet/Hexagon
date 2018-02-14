@@ -84,6 +84,8 @@ namespace Hexagon.AkkaImpl
                 section.AkkaConfig
                 .WithFallback(ConfigurationFactory.ParseString($@"
                     akka.actor.provider = ""Akka.Cluster.ClusterActorRefProvider, Akka.Cluster""
+                    akka.remote.dot-netty.tcp.hostname = ""{System.Net.Dns.GetHostName()}""
+                    akka.remote.dot-netty.tcp.port = 0
                     akka.cluster.pub-sub.role = {cNodeRoleName}
                     akka.cluster.distributed-data.role = {cNodeRoleName}
                 "))
