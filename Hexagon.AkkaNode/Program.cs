@@ -11,13 +11,13 @@ namespace Hexagon.AkkaNode
 {
     class Options
     {
-        [Option('a', "assemblies", Required = true, HelpText = "The assemblies to load, separated by space(s).")]
+        [Option('a', "assemblies", Required = false, HelpText = "The assemblies to load, separated by space(s). Mandatory if no role specified.")]
         public IEnumerable<string> Assemblies { get; set; }
         [Option('c', "config", Required = false, HelpText = "The config file to load.")]
         public string ConfigPath { get; set; }
-        [Option('n', "node", Required = true, HelpText = "The node identifier. Must be unique in the cluster.")]
+        [Option('n', "node", Required = true, HelpText = "The node identifier (must be unique in the cluster).")]
         public string NodeId { get; set; }
-        [Option('r', "roles", Required = false, HelpText = "The roles assigned to this node, separated by space(s).")]
+        [Option('r', "roles", Required = false, HelpText = "The roles assigned to this node, separated by space(s). Mandatory if no assembly specified.")]
         public IEnumerable<string> Roles { get; set; }
 
         public override string ToString()
@@ -32,7 +32,7 @@ Roles: {string.Join(", ", Roles)}
     }
     class Program
     {
-        static void Main(string[] args)
+        static void Main(params string[] args)
         {
             CommandLine.Parser.Default.ParseArguments<Options>(args)
                 .WithParsed<Options>(opts => RunOptionsAndReturnExitCode(opts))
@@ -42,12 +42,21 @@ Roles: {string.Join(", ", Roles)}
         static void RunOptionsAndReturnExitCode(Options opts)
         {
             Console.WriteLine(opts);
+
+            if (!opts.Roles.Any() && !opts.Assemblies.Any())
+            {
+                Console.WriteLine("ERROR: Either an assembly or a role must be specified.\n");
+                Main("--help");
+            }
             using (var system = new XmlMessageSystem(new NodeConfig(opts.NodeId, opts.Roles)))
             {
                 PatternActionsRegistry<XmlMessage, XmlMessagePattern> registry = new PatternActionsRegistry<XmlMessage, XmlMessagePattern>();
-                foreach (var assembly in opts.Assemblies)
+                if (opts.Assemblies != null)
                 {
-                    registry.AddActionsFromAssembly(assembly);
+                    foreach (var assembly in opts.Assemblies)
+                    {
+                        registry.AddActionsFromAssembly(assembly);
+                    }
                 }
                 system.Start(registry);
                 registry = null;

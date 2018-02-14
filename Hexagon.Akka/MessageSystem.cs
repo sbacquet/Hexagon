@@ -30,6 +30,7 @@ namespace Hexagon.AkkaImpl
         readonly ILoggingAdapter Logger;
         public readonly NodeConfig NodeConfig;
         readonly ActorDirectory<M,P> ActorDirectory;
+        const string cNodeRoleName = "_node_";
 
         static MessageSystem<M, P> _instance = null;
         public static MessageSystem<M, P> Instance
@@ -52,7 +53,7 @@ namespace Hexagon.AkkaImpl
                   ActorSystem.Create(
                       systemName,
                       ConfigurationFactory
-                      .ParseString($@"akka.cluster.roles = [{string.Join(",", nodeConfig.Roles)}]")
+                      .ParseString($@"akka.cluster.roles = [{string.Join(",", nodeConfig.Roles.Union(new[] { cNodeRoleName }).Distinct())}]")
                       .WithFallback(DefaultConfig())),
                   messageFactory, 
                   patternFactory,
@@ -81,7 +82,11 @@ namespace Hexagon.AkkaImpl
             var section = (AkkaConfigurationSection)ConfigurationManager.GetSection("akka");
             return
                 section.AkkaConfig
-                .WithFallback(ConfigurationFactory.ParseString(@"akka.actor.provider = ""Akka.Cluster.ClusterActorRefProvider, Akka.Cluster"""))
+                .WithFallback(ConfigurationFactory.ParseString($@"
+                    akka.actor.provider = ""Akka.Cluster.ClusterActorRefProvider, Akka.Cluster""
+                    akka.cluster.pub-sub.role = {cNodeRoleName}
+                    akka.cluster.distributed-data.role = {cNodeRoleName}
+                "))
                 .WithFallback(DistributedData.DefaultConfig())
                 .WithFallback(DistributedPubSub.DefaultConfig());
         }
