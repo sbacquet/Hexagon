@@ -257,6 +257,10 @@ namespace Hexagon.AkkaImpl
 
         private async Task CreateActors(PatternActionsRegistry<M, P> registry)
         {
+            // System actors
+            ActorSystem.ActorOf(Props.Create(() => new PatternUnpublisherActor<M, P>(ActorDirectory)), "_PatternUnpublisher_");
+
+            // Custom actors
             var groups = registry.LookupByKey();
             foreach (var group in groups)
             {
@@ -308,8 +312,7 @@ namespace Hexagon.AkkaImpl
         {
             Mediator.Tell(new Put(actor));
 
-            var actorDirectory = new ActorDirectory<M, P>(ActorSystem, NodeConfig);
-            await actorDirectory.PublishPatterns(actor.Path.ToStringWithoutAddress(), patterns);
+            await ActorDirectory.PublishPatterns(actor.Path.ToStringWithoutAddress(), patterns);
         }
 
         static Action<M, ICanReceiveMessage<M>, ICanReceiveMessage<M>, MessageSystem<M, P>> PowershellScriptToAction(string script, bool respondWithOutput)
