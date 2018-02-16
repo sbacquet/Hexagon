@@ -16,6 +16,7 @@ using Akka.Configuration;
 using Akka.Remote.TestKit;
 using FluentAssertions;
 using Akka.DistributedData;
+using Hexagon.AkkaImpl;
 
 namespace Hexagon.AkkaImpl.MultinodeTests
 {
@@ -54,8 +55,8 @@ namespace Hexagon.AkkaImpl.MultinodeTests
         private readonly RoleName _second;
         private readonly RoleName _third;
 
-        Hexagon.AkkaImpl.XmlMessageSystem _messageSystem;
-        Hexagon.AkkaImpl.PatternActionsRegistry<XmlMessage, XmlMessagePattern> _registry;
+        XmlMessageSystem _messageSystem;
+        PatternActionsRegistry<XmlMessage, XmlMessagePattern> _registry;
 
         public XmlMessageSystemTests() : this(new XmlMessageSystemTestsConfig())
         {

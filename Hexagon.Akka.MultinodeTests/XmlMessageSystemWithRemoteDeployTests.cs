@@ -108,7 +108,7 @@ namespace Hexagon.AkkaImpl.MultinodeTests
                 new XmlMessagePattern(@"/question1"),
                 (m, sender, self, ms) =>
                 {
-                    sender.Tell(XmlMessage.FromString($@"<answer1>{((ActorRefMessageReceiver<XmlMessage>)self).Actor.Path}</answer1>"), self);
+                    sender.Tell(XmlMessage.FromString($@"<answer1>{self.Path}</answer1>"), self);
                 },
                 "routed");
             registry.AddPowershellScriptBody(

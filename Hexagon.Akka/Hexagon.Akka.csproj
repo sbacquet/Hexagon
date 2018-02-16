@@ -5,6 +5,16 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="JsonMessageSerializer.cs" />
+    <Compile Remove="XmlMessageSerializer.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="JsonMessageSerializer.cs" />
+    <None Include="XmlMessageSerializer.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Akka" Version="1.3.4" />
     <PackageReference Include="Akka.Cluster" Version="1.3.4" />
     <PackageReference Include="Akka.Cluster.Tools" Version="1.3.4" />

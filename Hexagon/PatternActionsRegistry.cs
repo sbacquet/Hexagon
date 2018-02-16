@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Reflection;
 
-namespace Hexagon.AkkaImpl
+namespace Hexagon
 {
     public enum EActionType { Code, PowershellScript };
 

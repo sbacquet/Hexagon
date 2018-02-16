@@ -18,21 +18,19 @@ using Akka.Configuration.Hocon;
 
 namespace Hexagon.AkkaImpl
 {
-    public class MessageSystem<M, P> : IDisposable
+    public class AkkaMessageSystem<M, P> : MessageSystem<M, P>, IDisposable
         where P : IMessagePattern<M>
         where M : IMessage
     {
         readonly ActorSystem ActorSystem;
         public IActorRef Mediator => DistributedPubSub.Get(ActorSystem).Mediator;
         public IActorRef Replicator => DistributedData.Get(ActorSystem).Replicator;
-        public readonly IMessageFactory<M> MessageFactory;
-        public readonly IMessagePatternFactory<P> PatternFactory;
         readonly ILoggingAdapter Logger;
         public readonly NodeConfig NodeConfig;
         readonly ActorDirectory<M,P> ActorDirectory;
 
-        static MessageSystem<M, P> _instance = null;
-        public static MessageSystem<M, P> Instance
+        static AkkaMessageSystem<M, P> _instance = null;
+        public static AkkaMessageSystem<M, P> Instance
         {
             get => _instance;
             private set
@@ -43,7 +41,7 @@ namespace Hexagon.AkkaImpl
             }
         }
 
-        public MessageSystem(
+        public AkkaMessageSystem(
             string systemName, 
             IMessageFactory<M> messageFactory, 
             IMessagePatternFactory<P> patternFactory,
@@ -60,15 +58,14 @@ namespace Hexagon.AkkaImpl
         {
         }
 
-        public MessageSystem(
+        public AkkaMessageSystem(
             ActorSystem system, 
             IMessageFactory<M> factory,
             IMessagePatternFactory<P> patternFactory,
             NodeConfig nodeConfig)
+            : base(factory, patternFactory)
         {
             ActorSystem = system;
-            MessageFactory = factory;
-            PatternFactory = patternFactory;
             Logger = Logging.GetLogger(system, this);
             NodeConfig = nodeConfig;
             ActorDirectory = new ActorDirectory<M, P>(system, nodeConfig);
@@ -92,7 +89,7 @@ namespace Hexagon.AkkaImpl
                 .WithFallback(DistributedPubSub.DefaultConfig());
         }
 
-        public async Task SendMessageAsync(M message, ICanReceiveMessage<M> sender)
+        public override async Task SendMessageAsync(M message, ICanReceiveMessage<M> sender)
         {
             if (sender != null && !(sender is ActorRefMessageReceiver<M>))
                 throw new ArgumentException("the sender must be a ActorRefMessageReceiver", "sender");
@@ -132,9 +129,6 @@ namespace Hexagon.AkkaImpl
             }
         }
 
-        public void SendMessage(M message, ICanReceiveMessage<M> sender)
-            => SendMessageAsync(message, sender).Wait();
-
         string GetMainReceiverPath(IEnumerable<ActorDirectory<M,P>.MatchingActor> primaryActors)
         {
             System.Diagnostics.Debug.Assert(primaryActors.All(actor => actor.IsSecondary == false));
@@ -163,7 +157,7 @@ namespace Hexagon.AkkaImpl
             }
         }
 
-        public async Task<M> SendMessageAndAwaitResponseAsync(M message, ICanReceiveMessage<M> sender, TimeSpan? timeout = null, System.Threading.CancellationToken? cancellationToken = null)
+        public override async Task<M> SendMessageAndAwaitResponseAsync(M message, ICanReceiveMessage<M> sender, TimeSpan? timeout = null, System.Threading.CancellationToken? cancellationToken = null)
         {
             if (sender != null && !(sender is ActorRefMessageReceiver<M>))
                 throw new ArgumentException("the sender must be a ActorRefMessageReceiver", "sender");
@@ -197,10 +191,7 @@ namespace Hexagon.AkkaImpl
             return default(M);
         }
 
-        public M SendMessageAndAwaitResponse(M message, ICanReceiveMessage<M> sender, TimeSpan? timeout = null, System.Threading.CancellationToken? cancellationToken = null)
-            => SendMessageAndAwaitResponseAsync(message, sender, timeout, cancellationToken).Result;
-
-        public async Task StartAsync(PatternActionsRegistry<M, P> registry = null)
+        public override async Task StartAsync(PatternActionsRegistry<M, P> registry = null)
         {
             Logger.Info("Starting the message system...");
             // Initialize mediator
@@ -228,9 +219,6 @@ namespace Hexagon.AkkaImpl
                 throw new Exception("Message system did not get ready within allocated timeframe !");
             }
         }
-
-        public void Start(PatternActionsRegistry<M, P> registry = null)
-            => StartAsync(registry).Wait();
 
         static Func<PatternActionsRegistry<M, P>.MessageRegistryEntry, Predicate<M>> FilterEntry => entry => message => entry.Pattern.Match(message);
         static Func<PatternActionsRegistry<M, P>.MessageRegistryEntry, Predicate<M>> NoFilterEntry => entry => null;
@@ -327,30 +315,6 @@ namespace Hexagon.AkkaImpl
             await ActorDirectory.PublishPatternsAsync(actors.Select(a => (a.actor.Path, a.patterns.ToArray())).ToArray());
         }
 
-        static Action<M, ICanReceiveMessage<M>, ICanReceiveMessage<M>, MessageSystem<M, P>> PowershellScriptToAction(string script, bool respondWithOutput)
-            => (message, sender, self, messageSystem) =>
-            {
-                var outputs = new PowershellScriptExecutor().Execute(
-                    script,
-                    ("message", message.ToString()),
-                    ("sender", sender as ActorRefMessageReceiver<M>),
-                    ("self", self as ActorRefMessageReceiver<M>),
-                    ("messageSystem", messageSystem));
-                if (outputs != null)
-                {
-                    if (respondWithOutput)
-                    {
-                        foreach (var output in outputs)
-                            sender.Tell(messageSystem.MessageFactory.FromString(output.ToString()), self);
-                    }
-                    else if (MessageSystem<M, P>.Instance.Logger.IsDebugEnabled)
-                    {
-                        foreach (var output in outputs)
-                            MessageSystem<M, P>.Instance.Logger.Debug("powershell output: {0}", output);
-                    }
-                }
-            };
-
         public void Dispose()
         {
             ActorDirectory.Dispose();
@@ -358,7 +322,7 @@ namespace Hexagon.AkkaImpl
         }
     }
 
-    public class XmlMessageSystem : MessageSystem<XmlMessage, XmlMessagePattern>
+    public class XmlMessageSystem : AkkaMessageSystem<XmlMessage, XmlMessagePattern>
     {
         public XmlMessageSystem(NodeConfig nodeConfig) : 
             base(
@@ -381,7 +345,7 @@ namespace Hexagon.AkkaImpl
         }
     }
 
-    public class JsonMessageSystem : MessageSystem<JsonMessage, JsonMessagePattern>
+    public class JsonMessageSystem : AkkaMessageSystem<JsonMessage, JsonMessagePattern>
     {
         public JsonMessageSystem(NodeConfig nodeConfig) : 
             base(
