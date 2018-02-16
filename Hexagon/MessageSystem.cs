@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Hexagon
 {
-    public abstract class MessageSystem<M, P>
+    public abstract class MessageSystem<M, P> : IDisposable
         where P : IMessagePattern<M>
         where M : IMessage
     {
@@ -53,6 +53,6 @@ namespace Hexagon
                     }
                 }
             };
-
+        public abstract void Dispose();
     }
 }

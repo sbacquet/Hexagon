@@ -18,7 +18,7 @@ using Akka.Configuration.Hocon;
 
 namespace Hexagon.AkkaImpl
 {
-    public class AkkaMessageSystem<M, P> : MessageSystem<M, P>, IDisposable
+    public class AkkaMessageSystem<M, P> : MessageSystem<M, P>
         where P : IMessagePattern<M>
         where M : IMessage
     {
@@ -315,7 +315,7 @@ namespace Hexagon.AkkaImpl
             await ActorDirectory.PublishPatternsAsync(actors.Select(a => (a.actor.Path, a.patterns.ToArray())).ToArray());
         }
 
-        public void Dispose()
+        public override void Dispose()
         {
             ActorDirectory.Dispose();
             CoordinatedShutdown.Get(ActorSystem).Run().Wait();

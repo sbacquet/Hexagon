@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net471</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Management.Automation.dll" Version="10.0.10586" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Hexagon.Akka\Hexagon.Akka.csproj" />
+    <ProjectReference Include="..\Hexagon\Hexagon.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Hexagon.Automation.psd1">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

@@ -40,8 +40,8 @@ namespace Hexagon.AkkaImpl
 
         public static NodeConfig FromFile(string filePath)
         {
-            // TODO
-            throw new NotImplementedException();
+            // FAKE
+            return new NodeConfig("fake", roles: new[] { "toto" });
         }
 
         public string GetActorFullName(string actorName)

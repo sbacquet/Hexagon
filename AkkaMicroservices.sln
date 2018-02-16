@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.27130.2024
+VisualStudioVersion = 15.0.27130.2027
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EchoActor", "EchoActor\EchoActor.csproj", "{68150777-0B80-456A-81A5-87F9DB7F5271}"
 EndProject
@@ -21,11 +21,13 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Hexagon.Akka.UnitTests", "H
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Hexagon.Akka.MultinodeTests", "Hexagon.Akka.MultinodeTests\Hexagon.Akka.MultinodeTests.csproj", "{C5168990-4497-42A3-827B-B98443BE15AC}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hexagon.AkkaNode", "Hexagon.AkkaNode\Hexagon.AkkaNode.csproj", "{46FA4CC5-F70C-4F30-8BC3-437612EEF243}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Hexagon.AkkaNode", "Hexagon.AkkaNode\Hexagon.AkkaNode.csproj", "{46FA4CC5-F70C-4F30-8BC3-437612EEF243}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hexagon.AkkaNode.Sample1", "Hexagon.AkkaNode.Sample1\Hexagon.AkkaNode.Sample1.csproj", "{000FFEB2-2CE7-4AE4-A492-C1F65EE71BB9}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Hexagon.AkkaNode.Sample1", "Hexagon.AkkaNode.Sample1\Hexagon.AkkaNode.Sample1.csproj", "{000FFEB2-2CE7-4AE4-A492-C1F65EE71BB9}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Hexagon.AkkaNode.Sample2", "Hexagon.AkkaNode.Sample2\Hexagon.AkkaNode.Sample2.csproj", "{84A0C91F-EA8B-4EBB-A237-E1F15F45F086}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Hexagon.Automation", "Hexagon.Automation\Hexagon.Automation.csproj", "{6968DBBC-D4CE-4FAB-AC0A-4D0CABB7D84D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -81,6 +83,10 @@ Global
 		{84A0C91F-EA8B-4EBB-A237-E1F15F45F086}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{84A0C91F-EA8B-4EBB-A237-E1F15F45F086}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{84A0C91F-EA8B-4EBB-A237-E1F15F45F086}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6968DBBC-D4CE-4FAB-AC0A-4D0CABB7D84D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6968DBBC-D4CE-4FAB-AC0A-4D0CABB7D84D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6968DBBC-D4CE-4FAB-AC0A-4D0CABB7D84D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6968DBBC-D4CE-4FAB-AC0A-4D0CABB7D84D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
