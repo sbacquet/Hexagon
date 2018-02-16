@@ -31,7 +31,7 @@ namespace Hexagon.AkkaImpl.MultinodeTests
                 akka.actor.provider = ""Akka.Cluster.ClusterActorRefProvider, Akka.Cluster""
                 akka.loglevel = DEBUG
                 akka.log-dead-letters-during-shutdown = on
-                akka.test.timefactor = 1
+                akka.test.timefactor = 10
             ").WithFallback(DistributedData.DefaultConfig());
 
             TestTransport = true;
@@ -133,7 +133,14 @@ namespace Hexagon.AkkaImpl.MultinodeTests
                 }, _second);
 
                 EnterBarrier("2-registered");
-                System.Threading.Thread.Sleep(TimeSpan.FromSeconds(_nodeConfig.GossipTimeFrameInSeconds));
+                //System.Threading.Thread.Sleep(TimeSpan.FromSeconds(_nodeConfig.GossipTimeFrameInSeconds));
+                if (this.Myself == _third) System.Diagnostics.Debugger.Launch();
+                var watcher = Sys.ActorOf(Props.Create(() => new PatternUnpublisherActor<XmlMessage, XmlMessagePattern>(_actorDirectory)), "watcher");
+                bool ready = false;
+                do
+                {
+                    ready = watcher.Ask<bool>(PatternUnpublisherActor<XmlMessage, XmlMessagePattern>.IsReady.Instance).Result;
+                } while (!ready);
 
                 RunOn(() =>
                 {
