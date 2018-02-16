@@ -99,7 +99,7 @@ namespace Hexagon.AkkaImpl.MultinodeTests
                 RunOn(() =>
                 {
                     _actorDirectory
-                    .PublishPatterns(
+                    .PublishPatternsAsync(
                         ("/user/test1",
                         new[]
                         {
@@ -121,7 +121,7 @@ namespace Hexagon.AkkaImpl.MultinodeTests
                 RunOn(() =>
                 {
                     _actorDirectory
-                    .PublishPatterns(
+                    .PublishPatternsAsync(
                         ("/user/test2",
                         new[]
                         {
@@ -136,7 +136,7 @@ namespace Hexagon.AkkaImpl.MultinodeTests
 
                 RunOn(() =>
                 {
-                    _actorDirectory.PublishPatterns(null).Wait();
+                    _actorDirectory.PublishPatternsAsync(null).Wait();
                 }, _third);
 
                 EnterBarrier("2-registered");
@@ -145,7 +145,7 @@ namespace Hexagon.AkkaImpl.MultinodeTests
 
                 Cluster.State.Members.Where(member => member.Status == MemberStatus.Up).Should().HaveCount(3, "there should be 3 up cluster nodes");
 
-                bool ready = _actorDirectory.IsReady().Result;
+                bool ready = _actorDirectory.IsReadyAsync().Result;
                 ready.Should().BeTrue("all nodes data must be ready");
 
                 EnterBarrier("3-ready");
@@ -154,7 +154,7 @@ namespace Hexagon.AkkaImpl.MultinodeTests
                 {
                     var patternFactory = new XmlMessagePatternFactory();
                     string xml = @"<root><value1>1</value1><value2 attr=""b"">2</value2><value3>3</value3></root>";
-                    var actorPaths = _actorDirectory.GetMatchingActors(XmlMessage.FromString(xml), patternFactory).Result.Select(ma => ma.Path);
+                    var actorPaths = _actorDirectory.GetMatchingActorsAsync(XmlMessage.FromString(xml), patternFactory).Result.Select(ma => ma.Path);
                     actorPaths.Should().BeEquivalentTo("/user/test1", "/user/test2");
                 }, _first, _second, _third);
 

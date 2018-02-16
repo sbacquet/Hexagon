@@ -127,13 +127,13 @@ namespace Hexagon.AkkaImpl.MultinodeTests
             {
                 RunOn(() =>
                 {
-                    _messageSystem.Start().Wait();
+                    _messageSystem.Start();
                 }, _deployTarget1, _deployTarget2);
                 EnterBarrier("2-deploy-target-started");
 
                 RunOn(() =>
                 {
-                    _messageSystem.Start().Wait();
+                    _messageSystem.Start();
                     var sender = new ActorRefMessageReceiver<XmlMessage>(TestActor);
                     _messageSystem.SendMessage(XmlMessage.FromString(@"<question1></question1>"), sender);
                     _messageSystem.SendMessage(XmlMessage.FromString(@"<question1></question1>"), sender);

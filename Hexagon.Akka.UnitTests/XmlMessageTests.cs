@@ -70,7 +70,7 @@ namespace Hexagon.AkkaImpl.UnitTests
                 {
                     var r = await
                         new ActorRefMessageReceiver<XmlMessage>(actor1)
-                        .Ask(XmlMessage.FromString("<message>OK?</message>"), messageFactory);
+                        .AskAsync(XmlMessage.FromString("<message>OK?</message>"), messageFactory);
                     Assert.Equal("<message>OK!</message>", r.Content);
                     TestActor.Tell(XmlMessage.FromString("<message>done</message>"));
                 },
@@ -103,7 +103,7 @@ namespace Hexagon.AkkaImpl.UnitTests
                 null)), "actor1");
             var r = 
                 new ActorRefMessageReceiver<XmlMessage>(actor1)
-                .Ask(XmlMessage.FromString("<message>test</message>"), messageFactory)
+                .AskAsync(XmlMessage.FromString("<message>test</message>"), messageFactory)
                 .Result;
             r.Match(@"message[. = ""OK!""]").Should().BeTrue();
         }

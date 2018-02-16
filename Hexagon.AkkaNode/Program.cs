@@ -58,14 +58,14 @@ Roles: {string.Join(", ", Roles)}
             }
             using (var system = new XmlMessageSystem(new NodeConfig(opts.NodeId, opts.Roles, opts.Assemblies)))
             {
-                system.Start().Wait();
+                system.Start();
                 Console.WriteLine("Press Control-C to stop.");
                 _quitEvent.WaitOne();
                 //while (Console.ReadKey(true).Key != ConsoleKey.Enter)
                 //{
                 //    try
                 //    {
-                //        var answer = system.SendMessageAndAwaitResponse(XmlMessage.FromString(@"<ping>Ping</ping>"), null).Result;
+                //        var answer = system.SendMessageAndAwaitResponse(XmlMessage.FromString(@"<ping>Ping</ping>"), null);
                 //        Console.WriteLine("Message1 received : {0}", answer?.Content);
                 //    }
                 //    catch (Exception)
@@ -74,7 +74,7 @@ Roles: {string.Join(", ", Roles)}
                 //    }
                 //    try
                 //    {
-                //        var answer2 = system.SendMessageAndAwaitResponse(XmlMessage.FromString(@"<plic>Plic</plic>"), null).Result;
+                //        var answer2 = system.SendMessageAndAwaitResponse(XmlMessage.FromString(@"<plic>Plic</plic>"), null);
                 //        Console.WriteLine("Message2 received : {0}", answer2?.Content);
                 //    }
                 //    catch (Exception)

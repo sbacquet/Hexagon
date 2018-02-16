@@ -56,7 +56,7 @@ namespace Hexagon.AkkaImpl
                 if (nodeAddress == Cluster.SelfUniqueAddress || mess.PreviousStatus == MemberStatus.Up)
                     return;
 
-                bool removed = await actorDirectory.RemoveNodeActors(nodeAddress);
+                bool removed = await actorDirectory.RemoveNodeActorsAsync(nodeAddress);
                 if (removed)
                     Log.Info("Actors of node {0} properly removed from patterns directory", nodeAddress);
                 else

@@ -24,7 +24,7 @@ namespace Hexagon.AkkaImpl
             else
                 Actor.Tell(new BytesMessage(message.Bytes));
         }
-        public virtual async Task<M> Ask(M message, IMessageFactory<M> factory, TimeSpan? timeout = null, System.Threading.CancellationToken? cancellationToken = null)
+        public virtual async Task<M> AskAsync(M message, IMessageFactory<M> factory, TimeSpan? timeout = null, System.Threading.CancellationToken? cancellationToken = null)
         {
             var bytesMessageTask = 
                 cancellationToken.HasValue ?
@@ -33,6 +33,9 @@ namespace Hexagon.AkkaImpl
                     Actor.Ask<BytesMessage>(new BytesMessage(message.Bytes), timeout);
             return await bytesMessageTask.ContinueWith<M>(task => factory.FromBytes(task.Result.Bytes));
         }
+
+        public M Ask(M message, IMessageFactory<M> factory, TimeSpan? timeout = null, System.Threading.CancellationToken? cancellationToken = null)
+            => AskAsync(message, factory, timeout, cancellationToken).Result;
 
         public string Path => Actor.Path.ToString();
     }
@@ -46,7 +49,7 @@ namespace Hexagon.AkkaImpl
         {
             ActorPath = Actor.Path.ToStringWithoutAddress();
         }
-        public override Task<M> Ask(M message, IMessageFactory<M> factory, TimeSpan? timeout = null, System.Threading.CancellationToken? cancellationToken = null)
+        public override Task<M> AskAsync(M message, IMessageFactory<M> factory, TimeSpan? timeout = null, System.Threading.CancellationToken? cancellationToken = null)
         {
             throw new InvalidOperationException($"Actor {ActorPath} cannot receive messages in this context");
         }

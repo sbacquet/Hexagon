@@ -22,7 +22,7 @@ namespace Hexagon.AkkaImpl
             else
                 Mediator.Tell(new Send(ActorPath, new BytesMessage(message.Bytes)));
         }
-        public async Task<M> Ask(M message, IMessageFactory<M> factory, TimeSpan? timeout = null, System.Threading.CancellationToken? cancellationToken = null)
+        public async Task<M> AskAsync(M message, IMessageFactory<M> factory, TimeSpan? timeout = null, System.Threading.CancellationToken? cancellationToken = null)
         {
             var bytesMessageTask = 
                 cancellationToken.HasValue ?
@@ -31,6 +31,9 @@ namespace Hexagon.AkkaImpl
                     Mediator.Ask<BytesMessage>(new Send(ActorPath, new BytesMessage(message.Bytes)), timeout);
             return await bytesMessageTask.ContinueWith<M>(task => factory.FromBytes(task.Result.Bytes));
         }
+
+        public M Ask(M message, IMessageFactory<M> factory, TimeSpan? timeout = null, System.Threading.CancellationToken? cancellationToken = null)
+            => AskAsync(message, factory, timeout, cancellationToken).Result;
 
         public string Path => ActorPath;
     }

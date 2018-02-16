@@ -39,7 +39,7 @@ namespace Hexagon.AkkaImpl
             public bool IsSecondary;
         }
 
-        public async Task<IEnumerable<MatchingActor>> GetMatchingActors(M message, IMessagePatternFactory<P> messagePatternFactory)
+        public async Task<IEnumerable<MatchingActor>> GetMatchingActorsAsync(M message, IMessagePatternFactory<P> messagePatternFactory)
         {
             var replicator = DistributedData.Get(ActorSystem).Replicator;
             GetKeysIdsResult keys = await replicator.Ask<GetKeysIdsResult>(Dsl.GetKeyIds);
@@ -78,7 +78,7 @@ namespace Hexagon.AkkaImpl
             return matchingActors;
         }
 
-        public async Task PublishPatterns(params (string actorPath, P[] patterns)[] actorsToPublish)
+        public async Task PublishPatternsAsync(params (string actorPath, P[] patterns)[] actorsToPublish)
         {
             var actorPropsList = actorsToPublish?.Select(actor => new ActorProps
             {
@@ -107,7 +107,7 @@ namespace Hexagon.AkkaImpl
             }
         }
 
-        public async Task<bool> RemoveNodeActors(UniqueAddress node)
+        public async Task<bool> RemoveNodeActorsAsync(UniqueAddress node)
         {
             var cluster = Cluster.Get(ActorSystem);
             var replicator = DistributedData.Get(ActorSystem).Replicator;
@@ -116,7 +116,7 @@ namespace Hexagon.AkkaImpl
             return response.AlreadyDeleted || response.IsSuccessful;
         }
 
-        public async Task<bool> IsReady()
+        public async Task<bool> IsReadyAsync()
         {
             if (Watcher == null)
                 Watcher = ActorSystem.ActorOf(

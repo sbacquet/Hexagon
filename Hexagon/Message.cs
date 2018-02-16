@@ -24,7 +24,7 @@ namespace Hexagon
     public interface ICanReceiveMessage<M>
     {
         void Tell(M message, ICanReceiveMessage<M> sender);
-        Task<M> Ask(M message, IMessageFactory<M> factory, TimeSpan? timeout = null, System.Threading.CancellationToken? cancellationToken = null);
+        Task<M> AskAsync(M message, IMessageFactory<M> factory, TimeSpan? timeout = null, System.Threading.CancellationToken? cancellationToken = null);
         string Path { get; }
     }
     public interface IMessagePattern<M>

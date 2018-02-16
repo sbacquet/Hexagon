@@ -92,12 +92,12 @@ namespace Hexagon.AkkaImpl
                 .WithFallback(DistributedPubSub.DefaultConfig());
         }
 
-        public async void SendMessage(M message, ICanReceiveMessage<M> sender)
+        public async Task SendMessageAsync(M message, ICanReceiveMessage<M> sender)
         {
             if (sender != null && !(sender is ActorRefMessageReceiver<M>))
                 throw new ArgumentException("the sender must be a ActorRefMessageReceiver", "sender");
 
-            var actorPaths = await ActorDirectory.GetMatchingActors(message, PatternFactory);
+            var actorPaths = await ActorDirectory.GetMatchingActorsAsync(message, PatternFactory);
             if (!actorPaths.Any())
             {
                 Logger.Error(@"Cannot find any receiver of message {0}", message);
@@ -132,6 +132,9 @@ namespace Hexagon.AkkaImpl
             }
         }
 
+        public void SendMessage(M message, ICanReceiveMessage<M> sender)
+            => SendMessageAsync(message, sender).Wait();
+
         string GetMainReceiverPath(IEnumerable<ActorDirectory<M,P>.MatchingActor> primaryActors)
         {
             System.Diagnostics.Debug.Assert(primaryActors.All(actor => actor.IsSecondary == false));
@@ -160,12 +163,12 @@ namespace Hexagon.AkkaImpl
             }
         }
 
-        public async Task<M> SendMessageAndAwaitResponse(M message, ICanReceiveMessage<M> sender, TimeSpan? timeout = null, System.Threading.CancellationToken? cancellationToken = null)
+        public async Task<M> SendMessageAndAwaitResponseAsync(M message, ICanReceiveMessage<M> sender, TimeSpan? timeout = null, System.Threading.CancellationToken? cancellationToken = null)
         {
             if (sender != null && !(sender is ActorRefMessageReceiver<M>))
                 throw new ArgumentException("the sender must be a ActorRefMessageReceiver", "sender");
 
-            var actorPaths = await ActorDirectory.GetMatchingActors(message, PatternFactory);
+            var actorPaths = await ActorDirectory.GetMatchingActorsAsync(message, PatternFactory);
             if (!actorPaths.Any())
             {
                 Logger.Error(@"Cannot find any receiver of message {0}", message);
@@ -189,12 +192,15 @@ namespace Hexagon.AkkaImpl
                     Logger.Debug(@"Primary receiver(s) of message {0} : {1}", message, string.Join(", ", primaryReceivers.Select(ma => ma.Path)));
                 string mainReceiverPath = GetMainReceiverPath(primaryReceivers);
                 var mainReceiver = new ActorPathMessageReceiver<M>(mainReceiverPath, Mediator);
-                return await mainReceiver.Ask(message, MessageFactory, timeout ?? TimeSpan.FromSeconds(10), cancellationToken);
+                return await mainReceiver.AskAsync(message, MessageFactory, timeout ?? TimeSpan.FromSeconds(10), cancellationToken);
             }
             return default(M);
         }
 
-        public async Task Start(PatternActionsRegistry<M, P> registry = null)
+        public M SendMessageAndAwaitResponse(M message, ICanReceiveMessage<M> sender, TimeSpan? timeout = null, System.Threading.CancellationToken? cancellationToken = null)
+            => SendMessageAndAwaitResponseAsync(message, sender, timeout, cancellationToken).Result;
+
+        public async Task StartAsync(PatternActionsRegistry<M, P> registry = null)
         {
             Logger.Info("Starting the message system...");
             // Initialize mediator
@@ -211,9 +217,9 @@ namespace Hexagon.AkkaImpl
                     actionsRegistry.AddActionsFromAssembly(assembly);
                 }
             }
-            await CreateActors(actionsRegistry);
+            await CreateActorsAsync(actionsRegistry);
             await Task.Delay(TimeSpan.FromSeconds(NodeConfig.GossipTimeFrameInSeconds));
-            bool ready = await ActorDirectory.IsReady();
+            bool ready = await ActorDirectory.IsReadyAsync();
             if (ready)
                 Logger.Info("Message system started and ready");
             else
@@ -222,6 +228,9 @@ namespace Hexagon.AkkaImpl
                 throw new Exception("Message system did not get ready within allocated timeframe !");
             }
         }
+
+        public void Start(PatternActionsRegistry<M, P> registry = null)
+            => StartAsync(registry).Wait();
 
         static Func<PatternActionsRegistry<M, P>.MessageRegistryEntry, Predicate<M>> FilterEntry => entry => message => entry.Pattern.Match(message);
         static Func<PatternActionsRegistry<M, P>.MessageRegistryEntry, Predicate<M>> NoFilterEntry => entry => null;
@@ -259,7 +268,7 @@ namespace Hexagon.AkkaImpl
             return (actions.Union(powershellActions), asyncActions);
         }
 
-        private async Task CreateActors(PatternActionsRegistry<M, P> registry)
+        private async Task CreateActorsAsync(PatternActionsRegistry<M, P> registry)
         {
             var groups = registry.LookupByKey();
             List<(IActorRef actor, IEnumerable<P> patterns)> actors = new List<(IActorRef actor, IEnumerable<P> patterns)>();
@@ -298,7 +307,7 @@ namespace Hexagon.AkkaImpl
                 Logger.Debug("Actor {0} created properly, path = {1}", actorName, actor.Path.ToStringWithoutAddress());
                 actors.Add((actor, group.Select(entry => entry.Pattern)));
             };
-            await RegisterToGlobalDirectory(actors);
+            await RegisterToGlobalDirectoryAsync(actors);
             Logger.Debug("Actors registered properly");
         }
 
@@ -310,12 +319,12 @@ namespace Hexagon.AkkaImpl
             return (Pool)Activator.CreateInstance(routerType, 0);
         }
 
-        async Task RegisterToGlobalDirectory(IEnumerable<(IActorRef actor, IEnumerable<P> patterns)> actors)
+        async Task RegisterToGlobalDirectoryAsync(IEnumerable<(IActorRef actor, IEnumerable<P> patterns)> actors)
         {
             foreach (var actor in actors.Select(a => a.actor).Distinct())
                 Mediator.Tell(new Put(actor));
 
-            await ActorDirectory.PublishPatterns(actors.Select(a => (a.actor.Path.ToStringWithoutAddress(), a.patterns.ToArray())).ToArray());
+            await ActorDirectory.PublishPatternsAsync(actors.Select(a => (a.actor.Path.ToStringWithoutAddress(), a.patterns.ToArray())).ToArray());
         }
 
         static Action<M, ICanReceiveMessage<M>, ICanReceiveMessage<M>, MessageSystem<M, P>> PowershellScriptToAction(string script, bool respondWithOutput)

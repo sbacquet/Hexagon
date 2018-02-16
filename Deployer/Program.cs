@@ -46,9 +46,9 @@ namespace Deployer
             }
         }
 
-        private static async void MemberRemoved(ActorSystem actorSystem)
+        private static void MemberRemoved(ActorSystem actorSystem)
         {
-            await actorSystem.Terminate();
+            actorSystem.Terminate().Wait();
             asTerminatedEvent.Set();
         }
 
