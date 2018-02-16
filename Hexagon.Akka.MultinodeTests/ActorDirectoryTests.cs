@@ -100,7 +100,7 @@ namespace Hexagon.AkkaImpl.MultinodeTests
                 {
                     _actorDirectory
                     .PublishPatternsAsync(
-                        ("/user/test1",
+                        (ActorPath.Parse(string.Format("akka://cluster/user/{0}", _nodeConfig.GetActorFullName("test1"))),
                         new[]
                         {
                             new XmlMessagePattern(
@@ -122,7 +122,7 @@ namespace Hexagon.AkkaImpl.MultinodeTests
                 {
                     _actorDirectory
                     .PublishPatternsAsync(
-                        ("/user/test2",
+                        (ActorPath.Parse(string.Format("akka://cluster/user/{0}", _nodeConfig.GetActorFullName("test2"))),
                         new[]
                         {
                             new XmlMessagePattern(
@@ -155,7 +155,7 @@ namespace Hexagon.AkkaImpl.MultinodeTests
                     var patternFactory = new XmlMessagePatternFactory();
                     string xml = @"<root><value1>1</value1><value2 attr=""b"">2</value2><value3>3</value3></root>";
                     var actorPaths = _actorDirectory.GetMatchingActorsAsync(XmlMessage.FromString(xml), patternFactory).Result.Select(ma => ma.Path);
-                    actorPaths.Should().BeEquivalentTo("/user/test1", "/user/test2");
+                    actorPaths.Should().BeEquivalentTo($"/user/{_first.Name}_test1", $"/user/{_second.Name}_test2");
                 }, _first, _second, _third);
 
                 EnterBarrier("4-done");

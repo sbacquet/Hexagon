@@ -78,13 +78,13 @@ namespace Hexagon.AkkaImpl
             return matchingActors;
         }
 
-        public async Task PublishPatternsAsync(params (string actorPath, P[] patterns)[] actorsToPublish)
+        public async Task PublishPatternsAsync(params (ActorPath actorPath, P[] patterns)[] actorsToPublish)
         {
             var actorPropsList = actorsToPublish?.Select(actor => new ActorProps
             {
-                Path = actor.actorPath,
+                Path = actor.actorPath.ToStringWithoutAddress(),
                 Patterns = actor.patterns,
-                MistrustFactor = NodeConfig.GetMistrustFactor(actor.actorPath)
+                MistrustFactor = NodeConfig.GetMistrustFactor(actor.actorPath.Name)
             });
             var cluster = Cluster.Get(ActorSystem);
             var replicator = DistributedData.Get(ActorSystem).Replicator;

@@ -44,14 +44,14 @@ namespace Hexagon.AkkaImpl
             throw new NotImplementedException();
         }
 
-        public string GetFullActorName(string actorName) => $"{NodeId}:{actorName}";
+        public string GetActorFullName(string actorName)
+            => $"{NodeId}_{actorName}";
 
         public ActorProps GetActorProps(string actorName)
-        {
-            return ActorsProps.TryGetValue(actorName, out ActorProps props) ? props : null;
-        }
+            => ActorsProps.TryGetValue(GetActorFullName(actorName), out ActorProps props) ? props : null;
 
-        public int GetMistrustFactor(string actorName) => GetActorProps(actorName)?.MistrustFactor ?? 1;
+        public int GetMistrustFactor(string actorName)
+            => GetActorProps(actorName)?.MistrustFactor ?? 1;
 
         public void SetActorProps(string actorName, ActorProps props)
         {
@@ -59,13 +59,16 @@ namespace Hexagon.AkkaImpl
                 props.MistrustFactor = props.MistrustFactor > 1 ? props.MistrustFactor : 2;
             else
                 props.MistrustFactor = 1;
-            ActorsProps[actorName] = props;
+            ActorsProps[GetActorFullName(actorName)] = props;
         }
 
-        public void AddRole(string role) => Roles.Add(role);
+        public void AddRole(string role)
+            => Roles.Add(role);
 
-        public void AddAssembly(string assembly) => Assemblies.Add(assembly);
+        public void AddAssembly(string assembly)
+            => Assemblies.Add(assembly);
 
-        public void AddThisAssembly() => AddAssembly(System.Reflection.Assembly.GetCallingAssembly().GetName().Name);
+        public void AddThisAssembly()
+            => AddAssembly(System.Reflection.Assembly.GetCallingAssembly().GetName().Name);
     }
 }

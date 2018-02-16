@@ -324,7 +324,7 @@ namespace Hexagon.AkkaImpl
             foreach (var actor in actors.Select(a => a.actor).Distinct())
                 Mediator.Tell(new Put(actor));
 
-            await ActorDirectory.PublishPatternsAsync(actors.Select(a => (a.actor.Path.ToStringWithoutAddress(), a.patterns.ToArray())).ToArray());
+            await ActorDirectory.PublishPatternsAsync(actors.Select(a => (a.actor.Path, a.patterns.ToArray())).ToArray());
         }
 
         static Action<M, ICanReceiveMessage<M>, ICanReceiveMessage<M>, MessageSystem<M, P>> PowershellScriptToAction(string script, bool respondWithOutput)
