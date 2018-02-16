@@ -58,7 +58,10 @@ namespace Hexagon.AkkaImpl
 
                 bool removed = await actorDirectory.RemoveNodeActorsAsync(nodeAddress);
                 if (removed)
-                    Log.Info("Actors of node {0} properly removed from patterns directory", nodeAddress);
+                {
+                    if (Log.IsDebugEnabled)
+                        Log.Debug("Actors of node {0} properly removed from patterns directory", nodeAddress);
+                }
                 else
                     Log.Error("Actors of node {0} could not be removed from patterns directory", nodeAddress);
             });
@@ -78,12 +81,14 @@ namespace Hexagon.AkkaImpl
                 HashSet<UniqueAddress> nodesToRemove = new HashSet<UniqueAddress>();
                 foreach (var node in NodesToWatch)
                 {
-                    Log.Info("Looking for data for node {0}...", node);
+                    if (Log.IsDebugEnabled)
+                        Log.Debug("Looking for data for node {0}...", node);
                     var setKey = new LWWRegisterKey<List<ActorDirectory<M, P>.ActorProps>>(node.ToString());
                     var getResponse = await replicator.Ask<IGetResponse>(Dsl.Get(setKey, ReadLocal.Instance));
                     if (getResponse.IsSuccessful)
                     {
-                        Log.Info("Data for node {0} are ready", node);
+                        if (Log.IsDebugEnabled)
+                            Log.Debug("Data for node {0} are ready", node);
                         nodesToRemove.Add(node);
                     }
                     else
@@ -91,7 +96,8 @@ namespace Hexagon.AkkaImpl
                         getResponse = await replicator.Ask<IGetResponse>(Dsl.Get(setKey, new ReadAll(Delay)));
                         if (getResponse.IsSuccessful)
                         {
-                            Log.Info("Data for node {0} are ready (after readall)", node);
+                            if (Log.IsDebugEnabled)
+                                Log.Debug("Data for node {0} are ready (after readall)", node);
                             nodesToRemove.Add(node);
                         }
                     }
@@ -123,7 +129,7 @@ namespace Hexagon.AkkaImpl
             {
                 _scheduledTask.Cancel();
                 _scheduledTask = null;
-                Log.Info("Scheduler stopped.");
+                Log.Debug("Scheduler stopped.");
             }
         }
     }
