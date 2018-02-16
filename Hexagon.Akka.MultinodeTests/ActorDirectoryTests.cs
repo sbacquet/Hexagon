@@ -99,7 +99,7 @@ namespace Hexagon.AkkaImpl.MultinodeTests
                 RunOn(() =>
                 {
                     _actorDirectory
-                    .PublishPatternsAsync(
+                    .PublishPatterns(
                         (ActorPath.Parse(string.Format("akka://cluster/user/{0}", _nodeConfig.GetActorFullName("test1"))),
                         new[]
                         {
@@ -114,14 +114,13 @@ namespace Hexagon.AkkaImpl.MultinodeTests
                                 {
                                     @"/root/value2[. = 2]"
                                 })
-                        }))
-                    .Wait();
+                        }));
                 }, _first);
 
                 RunOn(() =>
                 {
                     _actorDirectory
-                    .PublishPatternsAsync(
+                    .PublishPatterns(
                         (ActorPath.Parse(string.Format("akka://cluster/user/{0}", _nodeConfig.GetActorFullName("test2"))),
                         new[]
                         {
@@ -130,13 +129,12 @@ namespace Hexagon.AkkaImpl.MultinodeTests
                                 {
                                     @"/root/value3[. = 3]"
                                 })
-                        }))
-                    .Wait();
+                        }));
                 }, _second);
 
                 RunOn(() =>
                 {
-                    _actorDirectory.PublishPatternsAsync(null).Wait();
+                    _actorDirectory.PublishPatterns(null);
                 }, _third);
 
                 EnterBarrier("2-registered");
@@ -145,7 +143,7 @@ namespace Hexagon.AkkaImpl.MultinodeTests
 
                 Cluster.State.Members.Where(member => member.Status == MemberStatus.Up).Should().HaveCount(3, "there should be 3 up cluster nodes");
 
-                bool ready = _actorDirectory.IsReadyAsync().Result;
+                bool ready = _actorDirectory.IsReady();
                 ready.Should().BeTrue("all nodes data must be ready");
 
                 EnterBarrier("3-ready");

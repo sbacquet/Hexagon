@@ -107,6 +107,9 @@ namespace Hexagon.AkkaImpl
             }
         }
 
+        public void PublishPatterns(params (ActorPath actorPath, P[] patterns)[] actorsToPublish)
+            => PublishPatternsAsync(actorsToPublish).Wait();
+
         public async Task<bool> RemoveNodeActorsAsync(UniqueAddress node)
         {
             var cluster = Cluster.Get(ActorSystem);
@@ -134,6 +137,9 @@ namespace Hexagon.AkkaImpl
             }
             return ready;
         }
+
+        public bool IsReady()
+            => IsReadyAsync().Result;
 
         public void Dispose()
         {
