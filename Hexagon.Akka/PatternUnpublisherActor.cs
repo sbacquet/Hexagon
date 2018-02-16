@@ -10,28 +10,43 @@ using Akka.DistributedData;
 
 namespace Hexagon.AkkaImpl
 {
+    internal static class PatternUnpublisherActor
+    {
+        internal class WatchReplicator { internal static WatchReplicator Instance = new WatchReplicator(); }
+        internal class IsReady { internal static IsReady Instance = new IsReady(); }
+    }
     public class PatternUnpublisherActor<M, P> : ReceiveActor
         where P : IMessagePattern<M>
     {
-        readonly ILoggingAdapter Log;
-        readonly Cluster Cluster;
-        readonly HashSet<UniqueAddress> NodesToWatch;
-        readonly ICancelable _scheduledTask;
-        const int cDelayInMs = 3000;
-        class WatchReplicator { public static WatchReplicator Instance = new WatchReplicator(); }
-        public class IsReady { public static IsReady Instance = new IsReady(); }
+        private readonly ILoggingAdapter Log;
+        private readonly Cluster Cluster;
+        private readonly HashSet<UniqueAddress> NodesToWatch;
+        private ICancelable _scheduledTask;
+        private readonly TimeSpan Delay;
 
         protected override void PreStart()
         {
             Cluster.Subscribe(Self, typeof(ClusterEvent.MemberRemoved), typeof(ClusterEvent.MemberUp));
+            StartOrResumeScheduler();
         }
 
-        public PatternUnpublisherActor(ActorDirectory<M, P> actorDirectory)
+        protected override void PostStop()
+        {
+            StopScheduler();
+        }
+
+        public PatternUnpublisherActor(ActorDirectory<M, P> actorDirectory, TimeSpan delay)
         {
             Cluster = Cluster.Get(Context.System);
             Log = Logging.GetLogger(Context);
-            NodesToWatch = new HashSet<UniqueAddress>(this.Cluster.State.Members.Where(node => node.Status == MemberStatus.Up).Select(node => node.UniqueAddress));
-            _scheduledTask = Context.System.Scheduler.ScheduleTellRepeatedlyCancelable(cDelayInMs, cDelayInMs, Self, WatchReplicator.Instance, ActorRefs.NoSender);
+            NodesToWatch = new HashSet<UniqueAddress>(
+                this.Cluster.State.Members
+                .Where(
+                    node => node.UniqueAddress != Cluster.SelfUniqueAddress
+                    && node.Status == MemberStatus.Up
+                    && node.Roles.Contains(Constants.NodeRoleName))
+                .Select(node => node.UniqueAddress));
+            Delay = delay;
 
             ReceiveAsync<ClusterEvent.MemberRemoved>(async mess =>
             {
@@ -51,10 +66,14 @@ namespace Hexagon.AkkaImpl
             Receive<ClusterEvent.MemberUp>(mess =>
             {
                 NodesToWatch.Add(mess.Member.UniqueAddress);
+                StartOrResumeScheduler();
             });
 
-            ReceiveAsync<WatchReplicator>(async _ =>
+            ReceiveAsync<PatternUnpublisherActor.WatchReplicator>(async _ =>
             {
+                if (_scheduledTask == null)
+                    return;
+
                 var replicator = DistributedData.Get(Context.System).Replicator;
                 HashSet<UniqueAddress> nodesToRemove = new HashSet<UniqueAddress>();
                 foreach (var node in NodesToWatch)
@@ -69,7 +88,7 @@ namespace Hexagon.AkkaImpl
                     }
                     else
                     {
-                        getResponse = await replicator.Ask<IGetResponse>(Dsl.Get(setKey, new ReadAll(TimeSpan.FromSeconds(3))));
+                        getResponse = await replicator.Ask<IGetResponse>(Dsl.Get(setKey, new ReadAll(Delay)));
                         if (getResponse.IsSuccessful)
                         {
                             Log.Info("Data for node {0} are ready (after readall)", node);
@@ -77,13 +96,35 @@ namespace Hexagon.AkkaImpl
                         }
                     }
                 }
-                NodesToWatch.RemoveWhere(node => nodesToRemove.Contains(node));
+                NodesToWatch.ExceptWith(nodesToRemove);
                 if (!NodesToWatch.Any())
-                    _scheduledTask.Cancel();
+                    StopScheduler();
             });
 
-            Receive<IsReady>(_ => Context.Sender.Tell(!NodesToWatch.Any()));
+            Receive<PatternUnpublisherActor.IsReady>(_ => Context.Sender.Tell(!NodesToWatch.Any()));
         }
 
+        private void StartOrResumeScheduler()
+        {
+            if (!NodesToWatch.Any())
+                return;
+            if (_scheduledTask == null)
+                _scheduledTask = Context.System.Scheduler.ScheduleTellRepeatedlyCancelable(
+                    TimeSpan.Zero,
+                    Delay,
+                    Self,
+                    PatternUnpublisherActor.WatchReplicator.Instance,
+                    ActorRefs.NoSender);
+        }
+
+        private void StopScheduler()
+        {
+            if (_scheduledTask != null)
+            {
+                _scheduledTask.Cancel();
+                _scheduledTask = null;
+                Log.Info("Scheduler stopped.");
+            }
+        }
     }
 }

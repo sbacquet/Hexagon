@@ -27,14 +27,16 @@ namespace Hexagon.AkkaImpl.MultinodeTests
             Second = Role("second");
             Third = Role("third");
 
-            CommonConfig = ConfigurationFactory.ParseString(@"
-                akka.actor.provider = ""Akka.Cluster.ClusterActorRefProvider, Akka.Cluster""
-                akka.loglevel = DEBUG
-                akka.log-dead-letters-during-shutdown = on
-                akka.test.timefactor = 10
-            ").WithFallback(DistributedData.DefaultConfig());
-
-            TestTransport = true;
+            CommonConfig = 
+                ConfigurationFactory.ParseString($@"
+                    akka.actor.provider = ""Akka.Cluster.ClusterActorRefProvider, Akka.Cluster""
+                    akka.loglevel = DEBUG
+                    akka.log-dead-letters-during-shutdown = off
+                    akka.test.timefactor = 1
+                    akka.cluster.roles = [ {Constants.NodeRoleName} ]
+                ")
+                .WithFallback(MultiNodeClusterSpec.ClusterConfig())
+                .WithFallback(DistributedData.DefaultConfig());
         }
     }
 
@@ -92,13 +94,13 @@ namespace Hexagon.AkkaImpl.MultinodeTests
 
         void ActorDirectoryMustGetInSync()
         {
-            Within(TimeSpan.FromSeconds(30), () =>
+            Within(TimeSpan.FromSeconds(60), () =>
             {
                 RunOn(() =>
                 {
                     _actorDirectory
                     .PublishPatterns(
-                        "/user/test1",
+                        ("/user/test1",
                         new[]
                         {
                             new XmlMessagePattern(
@@ -112,7 +114,7 @@ namespace Hexagon.AkkaImpl.MultinodeTests
                                 {
                                     @"/root/value2[. = 2]"
                                 })
-                        })
+                        }))
                     .Wait();
                 }, _first);
 
@@ -120,7 +122,7 @@ namespace Hexagon.AkkaImpl.MultinodeTests
                 {
                     _actorDirectory
                     .PublishPatterns(
-                        "/user/test2",
+                        ("/user/test2",
                         new[]
                         {
                             new XmlMessagePattern(
@@ -128,19 +130,25 @@ namespace Hexagon.AkkaImpl.MultinodeTests
                                 {
                                     @"/root/value3[. = 3]"
                                 })
-                        })
+                        }))
                     .Wait();
                 }, _second);
 
-                EnterBarrier("2-registered");
-                //System.Threading.Thread.Sleep(TimeSpan.FromSeconds(_nodeConfig.GossipTimeFrameInSeconds));
-                if (this.Myself == _third) System.Diagnostics.Debugger.Launch();
-                var watcher = Sys.ActorOf(Props.Create(() => new PatternUnpublisherActor<XmlMessage, XmlMessagePattern>(_actorDirectory)), "watcher");
-                bool ready = false;
-                do
+                RunOn(() =>
                 {
-                    ready = watcher.Ask<bool>(PatternUnpublisherActor<XmlMessage, XmlMessagePattern>.IsReady.Instance).Result;
-                } while (!ready);
+                    _actorDirectory.PublishPatterns(null).Wait();
+                }, _third);
+
+                EnterBarrier("2-registered");
+
+                System.Threading.Thread.Sleep(TimeSpan.FromSeconds(_nodeConfig.GossipTimeFrameInSeconds));
+
+                Cluster.State.Members.Where(member => member.Status == MemberStatus.Up).Should().HaveCount(3, "there should be 3 up cluster nodes");
+
+                bool ready = _actorDirectory.IsReady().Result;
+                ready.Should().BeTrue("all nodes data must be ready");
+
+                EnterBarrier("3-ready");
 
                 RunOn(() =>
                 {
@@ -150,7 +158,11 @@ namespace Hexagon.AkkaImpl.MultinodeTests
                     actorPaths.Should().BeEquivalentTo("/user/test1", "/user/test2");
                 }, _first, _second, _third);
 
-                EnterBarrier("3-done");
+                EnterBarrier("4-done");
+
+                _actorDirectory.Dispose();
+
+                EnterBarrier("5-exit");
             });
         }
     }

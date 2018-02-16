@@ -30,7 +30,6 @@ namespace Hexagon.AkkaImpl
         readonly ILoggingAdapter Logger;
         public readonly NodeConfig NodeConfig;
         readonly ActorDirectory<M,P> ActorDirectory;
-        const string cNodeRoleName = "_node_";
 
         static MessageSystem<M, P> _instance = null;
         public static MessageSystem<M, P> Instance
@@ -53,7 +52,7 @@ namespace Hexagon.AkkaImpl
                   ActorSystem.Create(
                       systemName,
                       ConfigurationFactory
-                      .ParseString($@"akka.cluster.roles = [{string.Join(",", nodeConfig.Roles.Union(new[] { cNodeRoleName }).Distinct())}]")
+                      .ParseString($@"akka.cluster.roles = [{string.Join(",", nodeConfig.Roles.Union(new[] { Constants.NodeRoleName }).Distinct())}]")
                       .WithFallback(DefaultConfig())),
                   messageFactory, 
                   patternFactory,
@@ -86,8 +85,8 @@ namespace Hexagon.AkkaImpl
                     akka.actor.provider = ""Akka.Cluster.ClusterActorRefProvider, Akka.Cluster""
                     akka.remote.dot-netty.tcp.hostname = ""{System.Net.Dns.GetHostName()}""
                     akka.remote.dot-netty.tcp.port = 0
-                    akka.cluster.pub-sub.role = {cNodeRoleName}
-                    akka.cluster.distributed-data.role = {cNodeRoleName}
+                    akka.cluster.pub-sub.role = {Constants.NodeRoleName}
+                    akka.cluster.distributed-data.role = {Constants.NodeRoleName}
                 "))
                 .WithFallback(DistributedData.DefaultConfig())
                 .WithFallback(DistributedPubSub.DefaultConfig());
@@ -195,7 +194,7 @@ namespace Hexagon.AkkaImpl
             return default(M);
         }
 
-        public void Start(PatternActionsRegistry<M,P> registry = null)
+        public async Task Start(PatternActionsRegistry<M, P> registry = null)
         {
             Logger.Info("Starting the message system...");
             // Initialize mediator
@@ -212,10 +211,16 @@ namespace Hexagon.AkkaImpl
                     actionsRegistry.AddActionsFromAssembly(assembly);
                 }
             }
-            CreateActors(actionsRegistry).Wait();
-            // Synchronize other actors
-            System.Threading.Thread.Sleep(TimeSpan.FromSeconds(NodeConfig.GossipTimeFrameInSeconds));
-            Logger.Info("Message system started and ready !");
+            await CreateActors(actionsRegistry);
+            await Task.Delay(TimeSpan.FromSeconds(NodeConfig.GossipTimeFrameInSeconds));
+            bool ready = await ActorDirectory.IsReady();
+            if (ready)
+                Logger.Info("Message system started and ready");
+            else
+            {
+                Logger.Error("Message system did not get ready within allocated timeframe");
+                throw new Exception("Message system did not get ready within allocated timeframe !");
+            }
         }
 
         static Func<PatternActionsRegistry<M, P>.MessageRegistryEntry, Predicate<M>> FilterEntry => entry => message => entry.Pattern.Match(message);
@@ -256,11 +261,8 @@ namespace Hexagon.AkkaImpl
 
         private async Task CreateActors(PatternActionsRegistry<M, P> registry)
         {
-            // System actors
-            ActorSystem.ActorOf(Props.Create(() => new PatternUnpublisherActor<M, P>(ActorDirectory)), "_PatternUnpublisher_");
-
-            // Custom actors
             var groups = registry.LookupByKey();
+            List<(IActorRef actor, IEnumerable<P> patterns)> actors = new List<(IActorRef actor, IEnumerable<P> patterns)>();
             foreach (var group in groups)
             {
                 string actorName = group.Key;
@@ -282,21 +284,22 @@ namespace Hexagon.AkkaImpl
                             new ClusterRouterPoolSettings(props.TotalMaxRoutees, props.MaxRouteesPerNode, props.AllowLocalRoutee, routeOnRole))
                         .Props(
                             Props.Create<Actor<M, P>>(
-                                actorName, 
+                                actorName,
                                 group
                                 .Select(
-                                    entry => 
-                                    (entry.CodeType, 
-                                    (entry.CodeType != EActionType.Code ? entry.Pattern.ToTuple() : (new string[] { }, false)), 
+                                    entry =>
+                                    (entry.CodeType,
+                                    (entry.CodeType != EActionType.Code ? entry.Pattern.ToTuple() : (new string[] { }, false)),
                                     entry.Code))
                                 .Distinct()
                                 .ToArray()));
                 }
                 var actor = ActorSystem.ActorOf(actorProps, actorName);
                 Logger.Debug("Actor {0} created properly, path = {1}", actorName, actor.Path.ToStringWithoutAddress());
-                await RegisterToGlobalDirectory(actor, group.Select(entry => entry.Pattern));
-                Logger.Debug("Actor {0} registered properly", actorName);
-            }
+                actors.Add((actor, group.Select(entry => entry.Pattern)));
+            };
+            await RegisterToGlobalDirectory(actors);
+            Logger.Debug("Actors registered properly");
         }
 
         Pool GetRouterPool(string routerName)
@@ -307,11 +310,12 @@ namespace Hexagon.AkkaImpl
             return (Pool)Activator.CreateInstance(routerType, 0);
         }
 
-        async Task RegisterToGlobalDirectory(IActorRef actor, IEnumerable<P> patterns)
+        async Task RegisterToGlobalDirectory(IEnumerable<(IActorRef actor, IEnumerable<P> patterns)> actors)
         {
-            Mediator.Tell(new Put(actor));
+            foreach (var actor in actors.Select(a => a.actor).Distinct())
+                Mediator.Tell(new Put(actor));
 
-            await ActorDirectory.PublishPatterns(actor.Path.ToStringWithoutAddress(), patterns);
+            await ActorDirectory.PublishPatterns(actors.Select(a => (a.actor.Path.ToStringWithoutAddress(), a.patterns.ToArray())).ToArray());
         }
 
         static Action<M, ICanReceiveMessage<M>, ICanReceiveMessage<M>, MessageSystem<M, P>> PowershellScriptToAction(string script, bool respondWithOutput)
@@ -340,6 +344,7 @@ namespace Hexagon.AkkaImpl
 
         public void Dispose()
         {
+            ActorDirectory.Dispose();
             CoordinatedShutdown.Get(ActorSystem).Run().Wait();
         }
     }
@@ -389,5 +394,4 @@ namespace Hexagon.AkkaImpl
         {
         }
     }
-
 }

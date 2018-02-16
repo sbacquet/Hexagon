@@ -10,12 +10,13 @@ using Akka.Event;
 
 namespace Hexagon.AkkaImpl
 {
-    public class ActorDirectory<M, P> 
+    public class ActorDirectory<M, P> : IDisposable
         where P : IMessagePattern<M>
     {
         readonly ActorSystem ActorSystem;
         readonly ILoggingAdapter Logger;
         readonly NodeConfig NodeConfig;
+        IActorRef Watcher = null;
 
         public ActorDirectory(ActorSystem actorSystem, NodeConfig nodeConfig)
         {
@@ -37,24 +38,18 @@ namespace Hexagon.AkkaImpl
             public int MistrustFactor;
             public bool IsSecondary;
         }
+
         public async Task<IEnumerable<MatchingActor>> GetMatchingActors(M message, IMessagePatternFactory<P> messagePatternFactory)
         {
             var replicator = DistributedData.Get(ActorSystem).Replicator;
-            GetKeysIdsResult keys = null;
-            for (int i = 0; i < 3; ++i)
-            {
-                keys = await replicator.Ask<GetKeysIdsResult>(Dsl.GetKeyIds);
-                if (keys.Keys.Any())
-                    break;
-                System.Threading.Thread.Sleep(TimeSpan.FromSeconds(NodeConfig.GossipTimeFrameInSeconds));
-            }
-            if (!keys.Keys.Any())
-                throw new Exception("Cannot get keys");
+            GetKeysIdsResult keys = await replicator.Ask<GetKeysIdsResult>(Dsl.GetKeyIds);
             var matchingActors = new List<MatchingActor>();
             foreach (var node in keys.Keys)
             {
-                var setKey = new LWWRegisterKey<List<ActorProps>>(node);
+                var setKey = new LWWRegisterKey<ActorProps[]>(node);
                 var getResponse = await replicator.Ask<IGetResponse>(Dsl.Get(setKey, ReadLocal.Instance));
+                if (!getResponse.IsSuccessful)
+                    throw new Exception($"cannot get message patterns for node {node}");
                 var actorPropsList = getResponse.Get(setKey).Value;
 
                 foreach (var actorProps in actorPropsList)
@@ -83,35 +78,32 @@ namespace Hexagon.AkkaImpl
             return matchingActors;
         }
 
-        public async Task PublishPatterns(string actorPath, IEnumerable<P> patterns)
+        public async Task PublishPatterns(params (string actorPath, P[] patterns)[] actorsToPublish)
         {
-            if (!patterns.Any())
-                throw new Exception("cannot distribute empty pattern list");
-
-            int mistrustFactor = NodeConfig.GetMistrustFactor(actorPath);
+            var actorPropsList = actorsToPublish?.Select(actor => new ActorProps
+            {
+                Path = actor.actorPath,
+                Patterns = actor.patterns,
+                MistrustFactor = NodeConfig.GetMistrustFactor(actor.actorPath)
+            });
             var cluster = Cluster.Get(ActorSystem);
             var replicator = DistributedData.Get(ActorSystem).Replicator;
-            var setKey = new LWWRegisterKey<List<ActorProps>>(cluster.SelfUniqueAddress.ToString());
+            var setKey = new LWWRegisterKey<ActorProps[]>(cluster.SelfUniqueAddress.ToString());
 
-            var updateResponse = 
+            var updateResponse =
                 await replicator.Ask<IUpdateResponse>(
                     Dsl.Update(
                         setKey,
-                        new LWWRegister<List<ActorProps>>(cluster.SelfUniqueAddress, new List<ActorProps>()),
+                        new LWWRegister<ActorProps[]>(cluster.SelfUniqueAddress, new ActorProps[] { }),
                         WriteLocal.Instance,
-                        reg =>
-                        {
-                            reg.Value.Add(new ActorProps
-                            {
-                                Path = actorPath,
-                                Patterns = patterns.ToArray(),
-                                MistrustFactor = mistrustFactor
-                            });
-                            return new LWWRegister<List<ActorProps>>(cluster.SelfUniqueAddress, reg.Value);
-                        }));
+                        reg => actorPropsList == null ? reg : 
+                        new LWWRegister<ActorProps[]>(
+                            cluster.SelfUniqueAddress,
+                            reg.Value.Concat(actorPropsList).ToArray())
+                        ));
             if (!updateResponse.IsSuccessful)
             {
-                throw new Exception($"cannot update patterns for actor path {actorPath}");
+                throw new Exception($"cannot public actors");
             }
         }
 
@@ -119,9 +111,34 @@ namespace Hexagon.AkkaImpl
         {
             var cluster = Cluster.Get(ActorSystem);
             var replicator = DistributedData.Get(ActorSystem).Replicator;
-            var setKey = new LWWRegisterKey<List<ActorProps>>(node.ToString());
+            var setKey = new LWWRegisterKey<ActorProps[]>(node.ToString());
             var response = await replicator.Ask<IDeleteResponse>(Dsl.Delete(setKey, WriteLocal.Instance));
             return response.AlreadyDeleted || response.IsSuccessful;
+        }
+
+        public async Task<bool> IsReady()
+        {
+            if (Watcher == null)
+                Watcher = ActorSystem.ActorOf(
+                    Props.Create(() => 
+                    new PatternUnpublisherActor<M, P>(
+                        this, 
+                        TimeSpan.FromSeconds(NodeConfig.GossipTimeFrameInSeconds))), 
+                    Constants.PatternUnpublisherName);
+            bool ready = false;
+            for (int i = 0; i < NodeConfig.GossipSynchroAttemptCount && !ready; ++i)
+            {
+                ready = await Watcher.Ask<bool>(PatternUnpublisherActor.IsReady.Instance);
+                if (ready) break;
+                await Task.Delay(TimeSpan.FromSeconds(NodeConfig.GossipTimeFrameInSeconds));
+            }
+            return ready;
+        }
+
+        public void Dispose()
+        {
+            if (Watcher != null)
+                Watcher.Tell(PoisonPill.Instance);
         }
     }
 }

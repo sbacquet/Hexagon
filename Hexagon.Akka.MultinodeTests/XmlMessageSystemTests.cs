@@ -37,6 +37,7 @@ namespace Hexagon.AkkaImpl.MultinodeTests
                 ConfigurationFactory
                 .ParseString(@"
                     akka.loglevel = DEBUG
+                    akka.test.timefactor = 1
                 ")
                 .WithFallback(MultiNodeClusterSpec.ClusterConfig())
                 .WithFallback(DistributedData.DefaultConfig())
@@ -130,7 +131,7 @@ namespace Hexagon.AkkaImpl.MultinodeTests
                         );
                 }, _second);
 
-                _messageSystem.Start(_registry);
+                _messageSystem.Start(_registry).Wait();
                 EnterBarrier("2-started");
 
                 RunOn(() =>

@@ -58,7 +58,7 @@ Roles: {string.Join(", ", Roles)}
             }
             using (var system = new XmlMessageSystem(new NodeConfig(opts.NodeId, opts.Roles, opts.Assemblies)))
             {
-                system.Start();
+                system.Start().Wait();
                 Console.WriteLine("Press Control-C to stop.");
                 _quitEvent.WaitOne();
                 //while (Console.ReadKey(true).Key != ConsoleKey.Enter)
