@@ -25,7 +25,7 @@ namespace Hexagon.Automation.Cmdlets
             switch (ImplType)
             {
                 case EImplType.Akka:
-                    xmlMessageSystem = Hexagon.AkkaImpl.XmlMessageSystem.Create(Hexagon.AkkaImpl.NodeConfig.FromFile(NodeConfig));
+                    xmlMessageSystem = Hexagon.AkkaImpl.XmlMessageSystem.Create(Hexagon.NodeConfig.FromFile(NodeConfig));
                     break;
                 default:
                     throw new ArgumentException("only Akka implementation type is handled");

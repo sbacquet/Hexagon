@@ -1,15 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Akka.Actor;
-using Akka.DistributedData;
-using Akka.Cluster;
-using Akka.Event;
 using System.Xml.Serialization;
 
-namespace Hexagon.AkkaImpl
+namespace Hexagon
 {
     public class NodeConfig
     {
@@ -22,7 +16,7 @@ namespace Hexagon.AkkaImpl
             public bool Untrustworthy = false;
             public int MistrustFactor = 1;
             public string RouteOnRole = null;
-            public string Router = Constants.DefaultRouter;
+            public string Router = null;
             public int TotalMaxRoutees = 1;
             public int MaxRouteesPerNode = 1;
             public bool AllowLocalRoutee = false;

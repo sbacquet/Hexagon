@@ -33,7 +33,7 @@ namespace Hexagon.AkkaImpl.MultinodeTests
                     akka.loglevel = DEBUG
                     akka.log-dead-letters-during-shutdown = off
                     akka.test.timefactor = 1
-                    akka.cluster.roles = [ {Constants.NodeRoleName} ]
+                    akka.cluster.roles = [ {Hexagon.Constants.NodeRoleName} ]
                 ")
                 .WithFallback(MultiNodeClusterSpec.ClusterConfig())
                 .WithFallback(DistributedData.DefaultConfig());

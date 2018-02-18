@@ -44,7 +44,7 @@ namespace Hexagon.AkkaImpl
                 .Where(
                     node => node.UniqueAddress != Cluster.SelfUniqueAddress
                     && node.Status == MemberStatus.Up
-                    && node.Roles.Contains(Constants.NodeRoleName))
+                    && node.Roles.Contains(Hexagon.Constants.NodeRoleName))
                 .Select(node => node.UniqueAddress));
             Delay = delay;
 

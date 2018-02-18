@@ -241,10 +241,11 @@ namespace Hexagon.AkkaImpl
                 }
                 else
                 {
-                    Logger.Debug("Deploying remote actor {0} with router {1}", actorName, props.Router);
+                    string router = props.Router ?? Constants.DefaultRouter;
+                    Logger.Debug("Deploying remote actor {0} with router {1}", actorName, router);
                     actorProps =
                         new ClusterRouterPool(
-                            GetRouterPool(props.Router),
+                            GetRouterPool(router),
                             new ClusterRouterPoolSettings(props.TotalMaxRoutees, props.MaxRouteesPerNode, props.AllowLocalRoutee, routeOnRole))
                         .Props(
                             Props.Create<Actor<M, P>>(
@@ -305,7 +306,7 @@ namespace Hexagon.AkkaImpl
 
         public static Config DefaultAkkaConfig(NodeConfig nodeConfig)
         {
-            var roles = string.Join(",", nodeConfig.Roles.Union(new[] { Constants.NodeRoleName }).Distinct().Select(item => $"\"{item}\""));
+            var roles = string.Join(",", nodeConfig.Roles.Union(new[] { Hexagon.Constants.NodeRoleName }).Distinct().Select(item => $"\"{item}\""));
             var seeds = string.Join(",", nodeConfig.SeedNodes.Select(item => $"\"{item}\""));
             return
                 ConfigurationFactory.ParseString($@"
@@ -314,8 +315,8 @@ namespace Hexagon.AkkaImpl
                     akka.remote.dot-netty.tcp.port = 0
                     akka.cluster.roles = [{roles}]
                     akka.cluster.seed-nodes = [{seeds}]
-                    akka.cluster.pub-sub.role = {Constants.NodeRoleName}
-                    akka.cluster.distributed-data.role = {Constants.NodeRoleName}
+                    akka.cluster.pub-sub.role = {Hexagon.Constants.NodeRoleName}
+                    akka.cluster.distributed-data.role = {Hexagon.Constants.NodeRoleName}
                 ")
                 .WithFallback(DistributedData.DefaultConfig())
                 .WithFallback(DistributedPubSub.DefaultConfig());
