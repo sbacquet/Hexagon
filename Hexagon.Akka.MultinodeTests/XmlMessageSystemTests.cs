@@ -55,7 +55,7 @@ namespace Hexagon.AkkaImpl.MultinodeTests
         private readonly RoleName _second;
         private readonly RoleName _third;
 
-        XmlMessageSystem _messageSystem;
+        AkkaMessageSystem<XmlMessage, XmlMessagePattern> _messageSystem;
         PatternActionsRegistry<XmlMessage, XmlMessagePattern> _registry;
 
         public XmlMessageSystemTests() : this(new XmlMessageSystemTestsConfig())
@@ -76,7 +76,7 @@ namespace Hexagon.AkkaImpl.MultinodeTests
             {
                 Cluster.Join(Node(to).Address);
                 var nodeConfig = new NodeConfig(from.Name);
-                _messageSystem = new XmlMessageSystem(this.Sys, nodeConfig);
+                _messageSystem = XmlMessageSystem.Create(this.Sys, nodeConfig);
             }, from);
             EnterBarrier(from.Name + "-joined");
         }

@@ -54,7 +54,7 @@ namespace Hexagon.AkkaImpl.MultinodeTests
         private readonly RoleName _deployTarget2;
         private readonly RoleName _deployer;
 
-        Hexagon.AkkaImpl.XmlMessageSystem _messageSystem;
+        Hexagon.AkkaImpl.AkkaMessageSystem<XmlMessage, XmlMessagePattern> _messageSystem;
 
         public XmlMessageSystemWithRemoteDeployTests() : this(new XmlMessageSystemWithRemoteDeployTestsConfig())
         {
@@ -76,9 +76,9 @@ namespace Hexagon.AkkaImpl.MultinodeTests
                 if (from.Name == "deployer")
                 {
                     nodeConfig.AddThisAssembly();
-                    nodeConfig.SetActorProps("routed", new NodeConfig.ActorProps { RouteOnRole = "routeHere", TotalMaxRoutees = 3, AllowLocalRoutee = true });
+                    nodeConfig.SetActorProps(new NodeConfig.ActorProps("routed") { RouteOnRole = "routeHere", TotalMaxRoutees = 3, AllowLocalRoutee = true });
                 }
-                _messageSystem = new XmlMessageSystem(this.Sys, nodeConfig);
+                _messageSystem = XmlMessageSystem.Create(this.Sys, nodeConfig);
             }, from);
             EnterBarrier(from.Name + "-joined");
         }

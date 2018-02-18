@@ -7,6 +7,7 @@ using Akka.Actor;
 using Akka.DistributedData;
 using Akka.Cluster;
 using Akka.Event;
+using System.Xml.Serialization;
 
 namespace Hexagon.AkkaImpl
 {
@@ -14,6 +15,10 @@ namespace Hexagon.AkkaImpl
     {
         public class ActorProps
         {
+            public ActorProps() { }
+            public ActorProps(string name) { Name = name; }
+            [XmlAttribute("Name")]
+            public string Name;
             public bool Untrustworthy = false;
             public int MistrustFactor = 1;
             public string RouteOnRole = null;
@@ -22,44 +27,84 @@ namespace Hexagon.AkkaImpl
             public int MaxRouteesPerNode = 1;
             public bool AllowLocalRoutee = false;
         }
-        Dictionary<string, ActorProps> ActorsProps = new Dictionary<string, ActorProps>();
-        public readonly string NodeId;
-        public readonly double GossipTimeFrameInSeconds;
-        public readonly int GossipSynchroAttemptCount;
-        public List<string> Roles { get; private set; }
-        public List<string> Assemblies { get; private set; }
+        [XmlIgnore]
+        Dictionary<string, ActorProps> ActorsPropsDict;
 
-        public NodeConfig(string nodeId, IEnumerable<string> roles = null, IEnumerable<string> assemblies = null, double gossipTimeFrameInSeconds = 5, int gossipSynchroAttemptCount = 3)
+        public string NodeId;
+        public string SystemName;
+        [XmlArrayItem("Address")]
+        public List<string> SeedNodes { get; private set; }
+        [XmlArrayItem("Name")]
+        public List<string> Roles { get; private set; }
+        [XmlArrayItem("Name")]
+        public List<string> Assemblies { get; private set; }
+        [XmlArrayItem("Actor")]
+        public ActorProps[] Actors
         {
+            get => ActorsPropsDict.Values.ToArray();
+            set => ActorsPropsDict = value.ToDictionary(actorProps => actorProps.Name);
+        }
+        public double GossipTimeFrameInSeconds;
+        public int GossipSynchroAttemptCount;
+
+        public NodeConfig()
+        {
+            SystemName = "MessageSystem";
+            NodeId = "node1";
+            GossipTimeFrameInSeconds = 5;
+            GossipSynchroAttemptCount = 3;
+            Roles = new List<string>();
+            Assemblies = new List<string>();
+            ActorsPropsDict = new Dictionary<string, ActorProps>();
+            SeedNodes = new List<string>();
+        }
+
+        public NodeConfig(string nodeId)
+        {
+            SystemName = "MessageSystem";
             NodeId = nodeId;
-            GossipTimeFrameInSeconds = gossipTimeFrameInSeconds;
-            GossipSynchroAttemptCount = gossipSynchroAttemptCount;
-            Roles = roles == null ? new List<string>() : roles.ToList();
-            Assemblies = assemblies == null ? new List<string>() : assemblies.ToList();
+            GossipTimeFrameInSeconds = 5;
+            GossipSynchroAttemptCount = 3;
+            Roles = new List<string>();
+            Assemblies = new List<string>();
+            ActorsPropsDict = new Dictionary<string, ActorProps>();
+            SeedNodes = new List<string>();
         }
 
         public static NodeConfig FromFile(string filePath)
         {
-            // FAKE
-            return new NodeConfig("fake", roles: new[] { "toto" });
+            var ser = new System.Xml.Serialization.XmlSerializer(typeof(NodeConfig));
+            using (var reader = new System.IO.StreamReader(filePath))
+            {
+                return (NodeConfig)ser.Deserialize(reader);
+            }
+        }
+
+        public void ToFile(string filePath)
+        {
+            var ser = new System.Xml.Serialization.XmlSerializer(typeof(NodeConfig));
+            using (var writer = new System.IO.StreamWriter(filePath))
+            {
+                ser.Serialize(writer, this);
+            }
         }
 
         public string GetActorFullName(string actorName)
             => $"{NodeId}_{actorName}";
 
         public ActorProps GetActorProps(string actorName)
-            => ActorsProps.TryGetValue(GetActorFullName(actorName), out ActorProps props) ? props : null;
+            => ActorsPropsDict.TryGetValue(GetActorFullName(actorName), out ActorProps props) ? props : null;
 
         public int GetMistrustFactor(string actorName)
             => GetActorProps(actorName)?.MistrustFactor ?? 1;
 
-        public void SetActorProps(string actorName, ActorProps props)
+        public void SetActorProps(ActorProps props)
         {
             if (props.Untrustworthy)
                 props.MistrustFactor = props.MistrustFactor > 1 ? props.MistrustFactor : 2;
             else
                 props.MistrustFactor = 1;
-            ActorsProps[GetActorFullName(actorName)] = props;
+            ActorsPropsDict[GetActorFullName(props.Name)] = props;
         }
 
         public void AddRole(string role)
@@ -70,5 +115,8 @@ namespace Hexagon.AkkaImpl
 
         public void AddThisAssembly()
             => AddAssembly(System.Reflection.Assembly.GetCallingAssembly().GetName().Name);
+
+        public void AddSeedNode(string node)
+            => SeedNodes.Add(node);
     }
 }

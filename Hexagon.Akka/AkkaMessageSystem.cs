@@ -42,23 +42,6 @@ namespace Hexagon.AkkaImpl
         }
 
         public AkkaMessageSystem(
-            string systemName, 
-            IMessageFactory<M> messageFactory, 
-            IMessagePatternFactory<P> patternFactory,
-            NodeConfig nodeConfig)
-            : this(
-                  ActorSystem.Create(
-                      systemName,
-                      ConfigurationFactory
-                      .ParseString($@"akka.cluster.roles = [{string.Join(",", nodeConfig.Roles.Union(new[] { Constants.NodeRoleName }).Distinct())}]")
-                      .WithFallback(DefaultConfig())),
-                  messageFactory, 
-                  patternFactory,
-                  nodeConfig)
-        {
-        }
-
-        public AkkaMessageSystem(
             ActorSystem system, 
             IMessageFactory<M> factory,
             IMessagePatternFactory<P> patternFactory,
@@ -71,22 +54,6 @@ namespace Hexagon.AkkaImpl
             ActorDirectory = new ActorDirectory<M, P>(system, nodeConfig);
 
             Instance = this;
-        }
-
-        public static Config DefaultConfig()
-        {
-            var section = (AkkaConfigurationSection)ConfigurationManager.GetSection("akka");
-            return
-                section.AkkaConfig
-                .WithFallback(ConfigurationFactory.ParseString($@"
-                    akka.actor.provider = ""Akka.Cluster.ClusterActorRefProvider, Akka.Cluster""
-                    akka.remote.dot-netty.tcp.hostname = ""{System.Net.Dns.GetHostName()}""
-                    akka.remote.dot-netty.tcp.port = 0
-                    akka.cluster.pub-sub.role = {Constants.NodeRoleName}
-                    akka.cluster.distributed-data.role = {Constants.NodeRoleName}
-                "))
-                .WithFallback(DistributedData.DefaultConfig())
-                .WithFallback(DistributedPubSub.DefaultConfig());
         }
 
         public override async Task SendMessageAsync(M message, ICanReceiveMessage<M> sender)
@@ -322,49 +289,72 @@ namespace Hexagon.AkkaImpl
         }
     }
 
-    public class XmlMessageSystem : AkkaMessageSystem<XmlMessage, XmlMessagePattern>
+    public static class AkkaMessageSystem
     {
-        public XmlMessageSystem(NodeConfig nodeConfig) : 
-            base(
-                "XmlCluster",
-                new XmlMessageFactory(),
-                new XmlMessagePatternFactory(),
-                nodeConfig
-                )
+        public static AkkaMessageSystem<M, P> Create<M, P>(
+            IMessageFactory<M> messageFactory,
+            IMessagePatternFactory<P> patternFactory,
+            NodeConfig nodeConfig)
+            where P : IMessagePattern<M>
+            where M : IMessage
         {
+            var actorSystem = ActorSystem.Create(nodeConfig.SystemName, DefaultAkkaConfig(nodeConfig));
+
+            return new AkkaMessageSystem<M, P>(actorSystem, messageFactory, patternFactory, nodeConfig);
         }
 
-        public XmlMessageSystem(ActorSystem system, NodeConfig nodeConfig) :
-            base(
-                system,
-                new XmlMessageFactory(),
-                new XmlMessagePatternFactory(),
-                nodeConfig
-                )
+        public static Config DefaultAkkaConfig(NodeConfig nodeConfig)
         {
+            var roles = string.Join(",", nodeConfig.Roles.Union(new[] { Constants.NodeRoleName }).Distinct().Select(item => $"\"{item}\""));
+            var seeds = string.Join(",", nodeConfig.SeedNodes.Select(item => $"\"{item}\""));
+            return
+                ConfigurationFactory.ParseString($@"
+                    akka.actor.provider = ""Akka.Cluster.ClusterActorRefProvider, Akka.Cluster""
+                    akka.remote.dot-netty.tcp.hostname = ""{System.Net.Dns.GetHostName()}""
+                    akka.remote.dot-netty.tcp.port = 0
+                    akka.cluster.roles = [{roles}]
+                    akka.cluster.seed-nodes = [{seeds}]
+                    akka.cluster.pub-sub.role = {Constants.NodeRoleName}
+                    akka.cluster.distributed-data.role = {Constants.NodeRoleName}
+                ")
+                .WithFallback(DistributedData.DefaultConfig())
+                .WithFallback(DistributedPubSub.DefaultConfig());
         }
     }
 
-    public class JsonMessageSystem : AkkaMessageSystem<JsonMessage, JsonMessagePattern>
+    public static class XmlMessageSystem
     {
-        public JsonMessageSystem(NodeConfig nodeConfig) : 
-            base(
-                "JsonCluster",
+        public static AkkaMessageSystem<XmlMessage, XmlMessagePattern> Create(NodeConfig nodeConfig)
+            => AkkaMessageSystem.Create(
+                new XmlMessageFactory(),
+                new XmlMessagePatternFactory(),
+                nodeConfig
+                );
+
+        public static AkkaMessageSystem<XmlMessage, XmlMessagePattern> Create(ActorSystem system, NodeConfig nodeConfig)
+            => new AkkaMessageSystem<XmlMessage, XmlMessagePattern>(
+                system,
+                new XmlMessageFactory(),
+                new XmlMessagePatternFactory(),
+                nodeConfig
+                );
+    }
+
+    public static class JsonMessageSystem
+    {
+        public static AkkaMessageSystem<JsonMessage, JsonMessagePattern> Create(NodeConfig nodeConfig)
+            => AkkaMessageSystem.Create(
                 new JsonMessageFactory(),
                 new JsonMessagePatternFactory(),
                 nodeConfig
-                )
-        {
-        }
+                );
 
-        public JsonMessageSystem(ActorSystem system, NodeConfig nodeConfig) :
-            base(
+        public static AkkaMessageSystem<JsonMessage, JsonMessagePattern> Create(ActorSystem system, NodeConfig nodeConfig)
+            => new AkkaMessageSystem<JsonMessage, JsonMessagePattern>(
                 system,
                 new JsonMessageFactory(),
                 new JsonMessagePatternFactory(),
                 nodeConfig
-                )
-        {
-        }
+                );
     }
 }
