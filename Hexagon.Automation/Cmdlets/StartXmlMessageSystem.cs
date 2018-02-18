@@ -13,14 +13,32 @@ namespace Hexagon.Automation.Cmdlets
     {
         public enum EImplType { Akka }
 
-        [Parameter(Mandatory = false)]
+        [Parameter(Mandatory = false, DontShow = true)]
         public EImplType ImplType { get; set; } = EImplType.Akka;
 
-        [Parameter(Mandatory = true)]
+        [Parameter(Mandatory = true, Position = 0)]
         public string NodeConfig { get; set; }
+
+        [Parameter(Mandatory = false, Position = 1)]
+        public PSObject[] MessagePatterns { get; set; }
 
         protected override void EndProcessing()
         {
+            PatternActionsRegistry<XmlMessage, XmlMessagePattern> registry = null;
+            if (MessagePatterns != null && MessagePatterns.Any())
+            {
+                registry = new PatternActionsRegistry<XmlMessage, XmlMessagePattern>();
+                foreach (var messagePattern in MessagePatterns)
+                {
+                    string key = (string)messagePattern.Properties["Key"].Value;
+                    var pattern = ((object[])messagePattern.Properties["Pattern"].Value).Select(o => (string)o).ToArray();
+                    var script = (ScriptBlock)messagePattern.Properties["Script"].Value;
+                    var sec = messagePattern.Properties["Secondary"];
+                    bool secondary = sec != null ? (bool)sec.Value : false;
+                    var xmlMessagePattern = new XmlMessagePattern(secondary, pattern);
+                    registry.AddPowershellScript(xmlMessagePattern, script, key);
+                }
+            }
             MessageSystem<XmlMessage, XmlMessagePattern> xmlMessageSystem = null;
             switch (ImplType)
             {
@@ -30,7 +48,7 @@ namespace Hexagon.Automation.Cmdlets
                 default:
                     throw new ArgumentException("only Akka implementation type is handled");
             }
-            xmlMessageSystem.Start();
+            xmlMessageSystem.Start(registry);
             WriteObject(xmlMessageSystem);
         }
     }

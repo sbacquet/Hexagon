@@ -11,7 +11,7 @@ namespace Hexagon.Automation.Cmdlets
     [Cmdlet(VerbsLifecycle.Stop, "XmlMessageSystem")]
     public class StopXmlMessageSystem : PSCmdlet
     {
-        [Parameter(Mandatory = true)]
+        [Parameter(Mandatory = true, ValueFromPipeline = true)]
         public MessageSystem<XmlMessage, XmlMessagePattern> System { get; set; }
 
         protected override void EndProcessing()

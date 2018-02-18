@@ -35,7 +35,7 @@ namespace Hexagon.AkkaImpl
             get => _instance;
             private set
             {
-                if (_instance != null)
+                if (value != null && _instance != null)
                     throw new Exception($"MessageSystem<{typeof(M).Name},{typeof(P).Name}> singleton already set !");
                 _instance = value;
             }
@@ -287,6 +287,7 @@ namespace Hexagon.AkkaImpl
         {
             ActorDirectory.Dispose();
             CoordinatedShutdown.Get(ActorSystem).Run().Wait();
+            Instance = null;
         }
     }
 
@@ -315,6 +316,7 @@ namespace Hexagon.AkkaImpl
                     akka.remote.dot-netty.tcp.port = 0
                     akka.cluster.roles = [{roles}]
                     akka.cluster.seed-nodes = [{seeds}]
+                    akka.cluster.auto-down-unreachable-after = 10s
                     akka.cluster.pub-sub.role = {Hexagon.Constants.NodeRoleName}
                     akka.cluster.distributed-data.role = {Hexagon.Constants.NodeRoleName}
                 ")

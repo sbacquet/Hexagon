@@ -40,7 +40,7 @@ namespace Hexagon
             {
                 var outputs = new PowershellScriptExecutor().Execute(
                     script,
-                    ("message", message.ToString()),
+                    ("message", message.ToPowershell()),
                     ("sender", sender),
                     ("self", self),
                     ("messageSystem", messageSystem));

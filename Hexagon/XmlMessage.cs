@@ -62,5 +62,7 @@ namespace Hexagon
             => this.AsPathNavigable().CreateNavigator().SelectSingleNode(path) != null;
 
         public override string ToString() => Content;
+
+        public object ToPowershell() => AsXml();
     }
 }

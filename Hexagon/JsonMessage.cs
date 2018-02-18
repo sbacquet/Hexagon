@@ -38,5 +38,7 @@ namespace Hexagon
                 .ToString(withIndentation ? Newtonsoft.Json.Formatting.None : Newtonsoft.Json.Formatting.Indented));
 
         public override string ToString() => Content;
+
+        public object ToPowershell() => new System.Management.Automation.PSObject(AsJObject()); // TODO
     }
 }

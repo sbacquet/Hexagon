@@ -15,6 +15,7 @@ namespace Hexagon
     public interface IMessage
     {
         byte[] Bytes { get; }
+        object ToPowershell();
     }
     public interface IMessageFactory<M>
     {

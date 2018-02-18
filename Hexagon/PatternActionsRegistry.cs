@@ -80,7 +80,7 @@ namespace Hexagon
         {
             AddPowershellScript(
                 pattern, 
-                string.Format("param([string]$message, $sender, $self, $messageSystem) {0}", scriptBody), 
+                string.Format("param($message, $sender, $self, $messageSystem) {0}", scriptBody), 
                 key);
         }
 
