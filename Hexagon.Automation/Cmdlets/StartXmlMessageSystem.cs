@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Management.Automation;
 using Hexagon;
+using System.Threading;
 
 namespace Hexagon.Automation.Cmdlets
 {
@@ -21,6 +22,8 @@ namespace Hexagon.Automation.Cmdlets
 
         [Parameter(Mandatory = false, Position = 1)]
         public PSObject[] MessagePatterns { get; set; }
+
+        private readonly ManualResetEvent _quitEvent = new ManualResetEvent(false);
 
         protected override void EndProcessing()
         {
@@ -39,17 +42,28 @@ namespace Hexagon.Automation.Cmdlets
                     registry.AddPowershellScript(xmlMessagePattern, script, key);
                 }
             }
-            MessageSystem<XmlMessage, XmlMessagePattern> xmlMessageSystem = null;
+            using (MessageSystem<XmlMessage, XmlMessagePattern> xmlMessageSystem = CreateSystem())
+            {
+                xmlMessageSystem.Start(registry);
+                Console.WriteLine("Press Control-C to stop.");
+                Console.CancelKeyPress += (sender, e) =>
+                {
+                    _quitEvent.Set();
+                    e.Cancel = true;
+                };
+                _quitEvent.WaitOne();
+            }
+        }
+
+        MessageSystem<XmlMessage, XmlMessagePattern> CreateSystem()
+        {
             switch (ImplType)
             {
                 case EImplType.Akka:
-                    xmlMessageSystem = Hexagon.AkkaImpl.XmlMessageSystem.Create(Hexagon.NodeConfig.FromFile(NodeConfig));
-                    break;
+                    return Hexagon.AkkaImpl.XmlMessageSystem.Create(Hexagon.NodeConfig.FromFile(NodeConfig));
                 default:
                     throw new ArgumentException("only Akka implementation type is handled");
             }
-            xmlMessageSystem.Start(registry);
-            WriteObject(xmlMessageSystem);
         }
     }
 }
