@@ -12,14 +12,17 @@ namespace Hexagon
     {
         public readonly IMessageFactory<M> MessageFactory;
         public readonly IMessagePatternFactory<P> PatternFactory;
+        protected readonly ILogger Logger;
 
         public MessageSystem(
             IMessageFactory<M> messageFactory,
-            IMessagePatternFactory<P> patternFactory
+            IMessagePatternFactory<P> patternFactory,
+            ILogger logger
             )
         {
             MessageFactory = messageFactory;
             PatternFactory = patternFactory;
+            Logger = logger;
         }
 
         public abstract Task SendMessageAsync(M message, ICanReceiveMessage<M> sender);
@@ -35,10 +38,10 @@ namespace Hexagon
         public void Start(PatternActionsRegistry<M, P> registry = null)
             => StartAsync(registry).Wait();
 
-        protected static Action<M, ICanReceiveMessage<M>, ICanReceiveMessage<M>, MessageSystem<M, P>> PowershellScriptToAction(string script, bool respondWithOutput, Action<PowershellScriptExecutor.StreamType, object> log = null)
-            => (message, sender, self, messageSystem) =>
+        protected static Action<M, ICanReceiveMessage<M>, ICanReceiveMessage<M>, MessageSystem<M, P>, ILogger> PowershellScriptToAction(string script, bool respondWithOutput)
+            => (message, sender, self, messageSystem, logger) =>
             {
-                var outputs = new PowershellScriptExecutor(log).Execute(
+                var outputs = new PowershellScriptExecutor(logger).Execute(
                     script,
                     ("message", message.ToPowershell()),
                     ("sender", sender),
@@ -50,6 +53,11 @@ namespace Hexagon
                     {
                         foreach (var output in outputs)
                             sender.Tell(messageSystem.MessageFactory.FromString(output.ToString()), self);
+                    }
+                    else if (logger.IsDebugEnabled)
+                    {
+                        foreach (var output in outputs)
+                            logger.Debug(@"Powershell output: {0}", output);
                     }
                 }
             };

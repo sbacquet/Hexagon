@@ -25,7 +25,7 @@ namespace Hexagon.AkkaImpl.UnitTests
             var messageFactory = new XmlMessageFactory();
             var a1 = new XmlActor.ActionWithFilter
             {
-                Action = (message, sender, self, _) => TestActor.Tell(XmlMessage.FromString("<message>done</message>")),
+                Action = (message, sender, self, ms, logger) => TestActor.Tell(XmlMessage.FromString("<message>done</message>")),
                 Filter = AlwaysTrue
             };
             var actor1 = Sys.ActorOf(Props.Create(() => new XmlActor(
@@ -36,7 +36,7 @@ namespace Hexagon.AkkaImpl.UnitTests
                 null)), "actor1");
             var a2 = new XmlActor.ActionWithFilter
             {
-                Action = (message, sender, self, _) => actor1.Tell(XmlMessage.FromString("<message>OK received</message>")),
+                Action = (message, sender, self, ms, logger) => actor1.Tell(XmlMessage.FromString("<message>OK received</message>")),
                 Filter = AlwaysTrue
             };
             var actor2 = Sys.ActorOf(Props.Create(() => new XmlActor(
@@ -55,7 +55,7 @@ namespace Hexagon.AkkaImpl.UnitTests
             var messageFactory = new XmlMessageFactory();
             var a1 = new XmlActor.ActionWithFilter
             {
-                Action = (message, sender, self, _) => sender.Tell(XmlMessage.FromString("<message>OK!</message>"), self),
+                Action = (message, sender, self, ms, logger) => sender.Tell(XmlMessage.FromString("<message>OK!</message>"), self),
                 Filter = AlwaysTrue
             };
             var actor1 = Sys.ActorOf(Props.Create(() => new XmlActor(
@@ -66,7 +66,7 @@ namespace Hexagon.AkkaImpl.UnitTests
                 null)), "actor1");
             var a2 = new XmlActor.AsyncActionWithFilter
             {
-                Action = async (message, sender, self, _) =>
+                Action = async (message, sender, self, ms, logger) =>
                 {
                     var r = await
                         new ActorRefMessageReceiver<XmlMessage>(actor1)
@@ -91,7 +91,7 @@ namespace Hexagon.AkkaImpl.UnitTests
         {
             var a1 = new XmlActor.ActionWithFilter
             {
-                Action = (message, sender, self, _) => sender.Tell(XmlMessage.FromString("<message>OK!</message>"), self),
+                Action = (message, sender, self, ms, logger) => sender.Tell(XmlMessage.FromString("<message>OK!</message>"), self),
                 Filter = AlwaysTrue
             };
             var messageFactory = new XmlMessageFactory();
@@ -111,7 +111,7 @@ namespace Hexagon.AkkaImpl.UnitTests
         [PatternActionsRegistration]
         static void Register(PatternActionsRegistry<XmlMessage, XmlMessagePattern> registry)
         {
-            registry.AddAction(new XmlMessagePattern("*"), (m, sender, self, _) => { }, "actor");
+            registry.AddAction(new XmlMessagePattern("*"), (m, sender, self, ms, logger) => { }, "actor");
         }
 
         [Fact]

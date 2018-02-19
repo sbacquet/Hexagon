@@ -16,8 +16,8 @@ namespace Hexagon
         public class MessageRegistryEntry
         {
             public P Pattern;
-            public Action<M, ICanReceiveMessage<M>, ICanReceiveMessage<M>, MessageSystem<M, P>> Action;
-            public Func<M, ICanReceiveMessage<M>, ICanReceiveMessage<M>, MessageSystem<M, P>, Task> AsyncAction;
+            public Action<M, ICanReceiveMessage<M>, ICanReceiveMessage<M>, MessageSystem<M, P>, ILogger> Action;
+            public Func<M, ICanReceiveMessage<M>, ICanReceiveMessage<M>, MessageSystem<M, P>, ILogger, Task> AsyncAction;
             public string Code;
             public EActionType CodeType;
             public string Key;
@@ -36,7 +36,7 @@ namespace Hexagon
                 Registry.AddRange(registry.Registry);
         }
 
-        public void AddAction(P pattern, Action<M, ICanReceiveMessage<M>, ICanReceiveMessage<M>, MessageSystem<M, P>> action, string key)
+        public void AddAction(P pattern, Action<M, ICanReceiveMessage<M>, ICanReceiveMessage<M>, MessageSystem<M, P>, ILogger> action, string key)
         {
             Registry.Add(new MessageRegistryEntry
             {
@@ -48,7 +48,7 @@ namespace Hexagon
             });
         }
 
-        public void AddAsyncAction(P pattern, Func<M, ICanReceiveMessage<M>, ICanReceiveMessage<M>, MessageSystem<M, P>, Task> action, string key)
+        public void AddAsyncAction(P pattern, Func<M, ICanReceiveMessage<M>, ICanReceiveMessage<M>, MessageSystem<M, P>, ILogger, Task> action, string key)
         {
             Registry.Add(new MessageRegistryEntry
             {

@@ -10,15 +10,17 @@ namespace Hexagon.AkkaImpl
         where P : IMessagePattern<M>
         where M : IMessage
     {
+        Logger Logger;
+
         public class ActionWithFilter
         {
-            public Action<M, ActorRefMessageReceiver<M>, ActorRefMessageReceiver<M>, MessageSystem<M, P>> Action;
+            public Action<M, ActorRefMessageReceiver<M>, ActorRefMessageReceiver<M>, MessageSystem<M, P>, ILogger> Action;
             public Predicate<M> Filter;
         }
 
         public class AsyncActionWithFilter
         {
-            public Func<M, ActorRefMessageReceiver<M>, ActorRefMessageReceiver<M>, MessageSystem<M, P>, Task> Action;
+            public Func<M, ActorRefMessageReceiver<M>, ActorRefMessageReceiver<M>, MessageSystem<M, P>, ILogger, Task> Action;
             public Predicate<M> Filter;
         }
 
@@ -30,11 +32,13 @@ namespace Hexagon.AkkaImpl
 
         public Actor(IEnumerable<ActionWithFilter> actions, IEnumerable<AsyncActionWithFilter> asyncActions, IMessageFactory<M> factory, NodeConfig nodeConfig, AkkaMessageSystem<M, P> messageSystem)
         {
+            Logger = new Logger(Akka.Event.Logging.GetLogger(Context));
             CreateReceivers(actions, asyncActions, factory, nodeConfig, messageSystem);
         }
 
         public Actor(string name, (EActionType Type, (string[] Conjuncts, bool IsSecondary) Pattern, string Code)[] actionCodes)
         {
+            Logger = new Logger(Akka.Event.Logging.GetLogger(Context));
             var messageSystem = AkkaMessageSystem<M, P>.Instance;
             var registry = new PatternActionsRegistry<M, P>();
 
@@ -43,11 +47,13 @@ namespace Hexagon.AkkaImpl
                 switch (action.Type)
                 {
                     case EActionType.Code:
-                        Context.System.Log.Debug(@"For remote actor ""{0}"", adding actions from assembly ""{1}""", name, action.Code);
+                        if (Logger.IsDebugEnabled)
+                            Logger.Debug(@"For remote actor ""{0}"", adding actions from assembly ""{1}""", name, action.Code);
                         registry.AddActionsFromAssembly(action.Code, entry => entry.CodeType == EActionType.Code);
                         break;
                     case EActionType.PowershellScript:
-                        Context.System.Log.Debug(@"For remote actor ""{0}"", adding Powershell script", name);
+                        if (Logger.IsDebugEnabled)
+                            Logger.Debug(@"For remote actor ""{0}"", adding Powershell script", name);
                         registry.AddPowershellScript(
                             messageSystem.PatternFactory.FromConjuncts(action.Pattern.Conjuncts, action.Pattern.IsSecondary), 
                             action.Code, 
@@ -56,7 +62,7 @@ namespace Hexagon.AkkaImpl
                 }
             }
             var actorEntries = registry.LookupByKey()[name];
-            var (actions, asyncActions) = messageSystem.GetActions(actorEntries);
+            var (actions, asyncActions) = AkkaMessageSystem<M, P>.GetActions(actorEntries);
 
             CreateReceivers(actions, asyncActions, messageSystem.MessageFactory, messageSystem.NodeConfig, messageSystem);
         }
@@ -73,7 +79,8 @@ namespace Hexagon.AkkaImpl
                             message, 
                             new ActorRefMessageReceiver<M>(Context.Sender),
                             new ActorRefMessageReceiver<M>(Context.Self),
-                            messageSystem
+                            messageSystem,
+                            Logger
                             ),
                         action.Filter);
                 }
@@ -86,7 +93,8 @@ namespace Hexagon.AkkaImpl
                             message,
                             new ActorRefMessageReceiver<M>(Context.Sender),
                             new ActorRefMessageReceiver<M>(Context.Self),
-                            messageSystem
+                            messageSystem,
+                            Logger
                             ),
                         asyncAction.Filter);
                 }

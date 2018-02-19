@@ -10,13 +10,11 @@ namespace Hexagon
 {
     public class PowershellScriptExecutor
     {
-        public enum StreamType { Debug, Verbose, Info, Warning, Error }
+        readonly ILogger _log;
 
-        readonly Action<StreamType, object> _log;
-
-        public PowershellScriptExecutor(Action<StreamType, object> log = null)
+        public PowershellScriptExecutor(ILogger logger)
         {
-            _log = log;
+            _log = logger;
         }
 
         public IEnumerable<object> Execute(string script, params (string, object)[] parameters)
@@ -37,23 +35,23 @@ namespace Hexagon
                     {
                         foreach (var item in powerShellInstance.Streams.Debug)
                         {
-                            _log(StreamType.Debug, item.Message);
+                            _log.Debug(item.Message);
                         }
                         foreach (var item in powerShellInstance.Streams.Verbose)
                         {
-                            _log(StreamType.Verbose, item.Message);
+                            _log.Info(item.Message);
                         }
                         foreach (var item in powerShellInstance.Streams.Information)
                         {
-                             _log(StreamType.Info, item);
+                             _log.Info(item.ToString());
                         }
                         foreach (var item in powerShellInstance.Streams.Warning)
                         {
-                            _log(StreamType.Warning, item.Message);
+                            _log.Warning(item.Message);
                         }
                         foreach (var item in powerShellInstance.Streams.Error)
                         {
-                            _log(StreamType.Error, item);
+                            _log.Error(item.ToString());
                         }
                     }
                     return psOutput.Select(output => output.BaseObject);

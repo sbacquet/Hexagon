@@ -14,7 +14,11 @@ namespace Hexagon.AkkaNode.Sample1
         {
             registry.AddAction(
                 new XmlMessagePattern(@"/ping"),
-                (message, sender, self, ms) => sender.Tell(XmlMessage.FromString($@"<pong>{self.Path}</pong>"), self),
+                (message, sender, self, ms, logger) =>
+                {
+                    logger.Info(@"Received {0}", message);
+                    sender.Tell(XmlMessage.FromString($@"<pong>{self.Path}</pong>"), self);
+                },
                 "actor1");
         }
     }

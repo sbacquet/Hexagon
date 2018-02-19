@@ -106,7 +106,7 @@ namespace Hexagon.AkkaImpl.MultinodeTests
         {
             registry.AddAction(
                 new XmlMessagePattern(@"/question1"),
-                (m, sender, self, ms) =>
+                (m, sender, self, ms, logger) =>
                 {
                     sender.Tell(XmlMessage.FromString($@"<answer1>{self.Path}</answer1>"), self);
                 },

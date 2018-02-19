@@ -25,7 +25,6 @@ namespace Hexagon.AkkaImpl
         readonly ActorSystem ActorSystem;
         public IActorRef Mediator => DistributedPubSub.Get(ActorSystem).Mediator;
         public IActorRef Replicator => DistributedData.Get(ActorSystem).Replicator;
-        readonly ILoggingAdapter Logger;
         public readonly NodeConfig NodeConfig;
         readonly ActorDirectory<M,P> ActorDirectory;
 
@@ -46,10 +45,9 @@ namespace Hexagon.AkkaImpl
             IMessageFactory<M> factory,
             IMessagePatternFactory<P> patternFactory,
             NodeConfig nodeConfig)
-            : base(factory, patternFactory)
+            : base(factory, patternFactory, new Logger(system.Log))
         {
             ActorSystem = system;
-            Logger = Logging.GetLogger(system, this);
             NodeConfig = nodeConfig;
             ActorDirectory = new ActorDirectory<M, P>(system, nodeConfig);
 
@@ -190,27 +188,7 @@ namespace Hexagon.AkkaImpl
         static Func<PatternActionsRegistry<M, P>.MessageRegistryEntry, Predicate<M>> FilterEntry => entry => message => entry.Pattern.Match(message);
         static Func<PatternActionsRegistry<M, P>.MessageRegistryEntry, Predicate<M>> NoFilterEntry => entry => null;
 
-        void LogPowershell(PowershellScriptExecutor.StreamType stream, object message)
-        {
-            switch (stream)
-            {
-                case PowershellScriptExecutor.StreamType.Debug:
-                    Logger.Debug(message.ToString());
-                    break;
-                case PowershellScriptExecutor.StreamType.Verbose:
-                case PowershellScriptExecutor.StreamType.Info:
-                    Logger.Info(message.ToString());
-                    break;
-                case PowershellScriptExecutor.StreamType.Warning:
-                    Logger.Warning(message.ToString());
-                    break;
-                case PowershellScriptExecutor.StreamType.Error:
-                    Logger.Error(message.ToString());
-                    break;
-            }
-        }
-
-        public (IEnumerable<Actor<M,P>.ActionWithFilter>, IEnumerable<Actor<M, P>.AsyncActionWithFilter>) GetActions(IEnumerable<PatternActionsRegistry<M, P>.MessageRegistryEntry> registryEntries)
+        public static (IEnumerable<Actor<M,P>.ActionWithFilter>, IEnumerable<Actor<M, P>.AsyncActionWithFilter>) GetActions(IEnumerable<PatternActionsRegistry<M, P>.MessageRegistryEntry> registryEntries)
         {
             Func<PatternActionsRegistry<M, P>.MessageRegistryEntry, Predicate<M>> filter = (registryEntries.Count() == 1 ? NoFilterEntry : FilterEntry);
             var actions =
@@ -228,7 +206,7 @@ namespace Hexagon.AkkaImpl
                 .Select(entry =>
                     new Actor<M, P>.ActionWithFilter
                     {
-                        Action = PowershellScriptToAction(entry.Code, !entry.Pattern.IsSecondary, LogPowershell),
+                        Action = PowershellScriptToAction(entry.Code, !entry.Pattern.IsSecondary),
                         Filter = filter(entry)
                     });
             var asyncActions =

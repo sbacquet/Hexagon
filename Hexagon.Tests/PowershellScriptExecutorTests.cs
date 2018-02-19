@@ -13,7 +13,7 @@ namespace Hexagon.Tests
         [TestMethod]
         public void Execute_PS_script_and_get_result()
         {
-            var outputs = new PowershellScriptExecutor().Execute(
+            var outputs = new PowershellScriptExecutor(null).Execute(
                             "param([string]$param1) $param1",
                             ("param1", "ok"));
             Assert.AreEqual("ok", outputs.First());
