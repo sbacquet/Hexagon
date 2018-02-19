@@ -39,7 +39,8 @@ namespace Hexagon.Automation.Cmdlets
         protected override void EndProcessing()
         {
             XmlMessage response = System.SendMessageAndAwaitResponse(XmlMessage.FromXml(Message), null, TimeSpan.FromSeconds(TimeoutInSeconds));
-            WriteObject(response.AsXml());
+            if (response != null)
+                WriteObject(response.AsXml());
         }
     }
 }
