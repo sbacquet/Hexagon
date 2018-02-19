@@ -56,7 +56,7 @@ namespace Hexagon.AkkaImpl
                 }
             }
             var actorEntries = registry.LookupByKey()[name];
-            var (actions, asyncActions) = AkkaMessageSystem<M, P>.GetActions(actorEntries);
+            var (actions, asyncActions) = messageSystem.GetActions(actorEntries);
 
             CreateReceivers(actions, asyncActions, messageSystem.MessageFactory, messageSystem.NodeConfig, messageSystem);
         }

@@ -87,7 +87,7 @@ namespace Hexagon
             => $"{NodeId}_{actorName}";
 
         public ActorProps GetActorProps(string actorName)
-            => ActorsPropsDict.TryGetValue(GetActorFullName(actorName), out ActorProps props) ? props : null;
+            => ActorsPropsDict.TryGetValue(actorName, out ActorProps props) ? props : null;
 
         public int GetMistrustFactor(string actorName)
             => GetActorProps(actorName)?.MistrustFactor ?? 1;

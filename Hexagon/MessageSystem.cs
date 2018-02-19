@@ -35,10 +35,10 @@ namespace Hexagon
         public void Start(PatternActionsRegistry<M, P> registry = null)
             => StartAsync(registry).Wait();
 
-        protected static Action<M, ICanReceiveMessage<M>, ICanReceiveMessage<M>, MessageSystem<M, P>> PowershellScriptToAction(string script, bool respondWithOutput)
+        protected static Action<M, ICanReceiveMessage<M>, ICanReceiveMessage<M>, MessageSystem<M, P>> PowershellScriptToAction(string script, bool respondWithOutput, Action<PowershellScriptExecutor.StreamType, object> log = null)
             => (message, sender, self, messageSystem) =>
             {
-                var outputs = new PowershellScriptExecutor().Execute(
+                var outputs = new PowershellScriptExecutor(log).Execute(
                     script,
                     ("message", message.ToPowershell()),
                     ("sender", sender),

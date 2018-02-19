@@ -10,8 +10,13 @@ namespace Hexagon
 {
     public class PowershellScriptExecutor
     {
-        public PowershellScriptExecutor()
+        public enum StreamType { Debug, Verbose, Info, Warning, Error }
+
+        readonly Action<StreamType, object> _log;
+
+        public PowershellScriptExecutor(Action<StreamType, object> log = null)
         {
+            _log = log;
         }
 
         public IEnumerable<object> Execute(string script, params (string, object)[] parameters)
@@ -28,6 +33,29 @@ namespace Hexagon
                 try
                 {
                     Collection<PSObject> psOutput = powerShellInstance.Invoke();
+                    if (_log != null)
+                    {
+                        foreach (var item in powerShellInstance.Streams.Debug)
+                        {
+                            _log(StreamType.Debug, item.Message);
+                        }
+                        foreach (var item in powerShellInstance.Streams.Verbose)
+                        {
+                            _log(StreamType.Verbose, item.Message);
+                        }
+                        foreach (var item in powerShellInstance.Streams.Information)
+                        {
+                             _log(StreamType.Info, item);
+                        }
+                        foreach (var item in powerShellInstance.Streams.Warning)
+                        {
+                            _log(StreamType.Warning, item.Message);
+                        }
+                        foreach (var item in powerShellInstance.Streams.Error)
+                        {
+                            _log(StreamType.Error, item);
+                        }
+                    }
                     return psOutput.Select(output => output.BaseObject);
                 }
                 catch (Exception ex)

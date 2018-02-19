@@ -190,7 +190,27 @@ namespace Hexagon.AkkaImpl
         static Func<PatternActionsRegistry<M, P>.MessageRegistryEntry, Predicate<M>> FilterEntry => entry => message => entry.Pattern.Match(message);
         static Func<PatternActionsRegistry<M, P>.MessageRegistryEntry, Predicate<M>> NoFilterEntry => entry => null;
 
-        public static (IEnumerable<Actor<M,P>.ActionWithFilter>, IEnumerable<Actor<M, P>.AsyncActionWithFilter>) GetActions(IEnumerable<PatternActionsRegistry<M, P>.MessageRegistryEntry> registryEntries)
+        void LogPowershell(PowershellScriptExecutor.StreamType stream, object message)
+        {
+            switch (stream)
+            {
+                case PowershellScriptExecutor.StreamType.Debug:
+                    Logger.Debug(message.ToString());
+                    break;
+                case PowershellScriptExecutor.StreamType.Verbose:
+                case PowershellScriptExecutor.StreamType.Info:
+                    Logger.Info(message.ToString());
+                    break;
+                case PowershellScriptExecutor.StreamType.Warning:
+                    Logger.Warning(message.ToString());
+                    break;
+                case PowershellScriptExecutor.StreamType.Error:
+                    Logger.Error(message.ToString());
+                    break;
+            }
+        }
+
+        public (IEnumerable<Actor<M,P>.ActionWithFilter>, IEnumerable<Actor<M, P>.AsyncActionWithFilter>) GetActions(IEnumerable<PatternActionsRegistry<M, P>.MessageRegistryEntry> registryEntries)
         {
             Func<PatternActionsRegistry<M, P>.MessageRegistryEntry, Predicate<M>> filter = (registryEntries.Count() == 1 ? NoFilterEntry : FilterEntry);
             var actions =
@@ -208,7 +228,7 @@ namespace Hexagon.AkkaImpl
                 .Select(entry =>
                     new Actor<M, P>.ActionWithFilter
                     {
-                        Action = PowershellScriptToAction(entry.Code, !entry.Pattern.IsSecondary),
+                        Action = PowershellScriptToAction(entry.Code, !entry.Pattern.IsSecondary, LogPowershell),
                         Filter = filter(entry)
                     });
             var asyncActions =
@@ -229,7 +249,7 @@ namespace Hexagon.AkkaImpl
             List<(IActorRef actor, IEnumerable<P> patterns)> actors = new List<(IActorRef actor, IEnumerable<P> patterns)>();
             foreach (var group in groups)
             {
-                string actorName = group.Key;
+                string actorName = NodeConfig.GetActorFullName(group.Key);
 
                 var props = NodeConfig.GetActorProps(actorName);
                 string routeOnRole = props?.RouteOnRole;
