@@ -14,7 +14,7 @@ namespace Hexagon.AkkaNode.Sample2
         {
             registry.AddAction(
                 new XmlMessagePattern(@"/plic"),
-                (message, sender, self, ms) => sender.Tell(XmlMessage.FromString(@"<ploc>Ploc</ploc>"), self),
+                (message, sender, self, ms) => sender.Tell(XmlMessage.FromString($@"<ploc>{self.Path}</ploc>"), self),
                 "actor2");
         }
     }
