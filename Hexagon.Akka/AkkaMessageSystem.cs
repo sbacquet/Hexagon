@@ -308,7 +308,7 @@ namespace Hexagon.AkkaImpl
         public static Config DefaultAkkaConfig(NodeConfig nodeConfig)
         {
             var roles = string.Join(",", nodeConfig.Roles.Union(new[] { Hexagon.Constants.NodeRoleName }).Distinct().Select(item => $"\"{item}\""));
-            var seeds = string.Join(",", nodeConfig.SeedNodes.Select(item => $"\"{item}\""));
+            var seeds = string.Join(",", nodeConfig.SeedNodes.Select(item => $@"""akka.tcp://{nodeConfig.SystemName}@{item}"""));
             return
                 ConfigurationFactory.ParseString($@"
                     akka.actor.provider = ""Akka.Cluster.ClusterActorRefProvider, Akka.Cluster""
