@@ -36,8 +36,9 @@ namespace Hexagon.AkkaImpl
             CreateReceivers(actions, asyncActions, factory, nodeConfig, messageSystem);
         }
 
-        public Actor(string name, (EActionType Type, (string[] Conjuncts, bool IsSecondary) Pattern, string Code)[] actionCodes)
+        public Actor((EActionType Type, (string[] Conjuncts, bool IsSecondary) Pattern, string Code)[] actionCodes)
         {
+            string name = Context.Self.Path.Name;
             Logger = new Logger(Akka.Event.Logging.GetLogger(Context));
             var messageSystem = AkkaMessageSystem<M, P>.Instance;
             var registry = new PatternActionsRegistry<M, P>();

@@ -235,7 +235,7 @@ namespace Hexagon.AkkaImpl
                 if (routeOnRole == null)
                 {
                     var (actions, asyncActions) = GetActions(group.AsEnumerable());
-                    actorProps = Props.Create(() => new Actor<M, P>(actions, asyncActions, MessageFactory, NodeConfig, this));
+                    actorProps = Props.Create<Actor<M, P>>(actions, asyncActions, MessageFactory, NodeConfig, this);
                 }
                 else
                 {
@@ -247,7 +247,6 @@ namespace Hexagon.AkkaImpl
                             new ClusterRouterPoolSettings(props.TotalMaxRoutees, props.MaxRouteesPerNode, props.AllowLocalRoutee, routeOnRole))
                         .Props(
                             Props.Create<Actor<M, P>>(
-                                actorName,
                                 group
                                 .Select(
                                     entry =>
