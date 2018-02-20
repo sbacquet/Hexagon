@@ -100,5 +100,11 @@ namespace Hexagon.AkkaImpl
                         asyncAction.Filter);
                 }
         }
+
+        protected override void PostRestart(Exception reason)
+        {
+            base.PostRestart(reason);
+            Logger.Warning(@"Actor ""{0}"" has been restarted because of exception ""{1}""", Context.Self.Path.Name, reason.Message);
+        }
     }
 }

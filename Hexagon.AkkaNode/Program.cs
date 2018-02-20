@@ -14,7 +14,6 @@ namespace Hexagon.AkkaNode
     {
         [Option('c', "config", Required = false, HelpText = "The config file to load.")]
         public string ConfigPath { get; set; }
-
     }
     class Program
     {
@@ -35,40 +34,48 @@ namespace Hexagon.AkkaNode
                 e.Cancel = true;
             };
 
-            var config = NodeConfig.FromFile(opts.ConfigPath);
-            using (var system = XmlMessageSystem.Create(config))
+            try
             {
-                system.Start();
-                Console.WriteLine("Press Control-C to stop.");
-                _quitEvent.WaitOne();
-                //while (Console.ReadKey(true).Key != ConsoleKey.Enter)
-                //{
-                //    try
-                //    {
-                //        var answer = system.SendMessageAndAwaitResponse(XmlMessage.FromString(@"<ping>Ping</ping>"), null);
-                //        Console.WriteLine("Message1 received : {0}", answer?.Content);
-                //    }
-                //    catch (Exception)
-                //    {
-                //        Console.WriteLine("Error : cannot get response");
-                //    }
-                //    try
-                //    {
-                //        var answer2 = system.SendMessageAndAwaitResponse(XmlMessage.FromString(@"<plic>Plic</plic>"), null);
-                //        Console.WriteLine("Message2 received : {0}", answer2?.Content);
-                //    }
-                //    catch (Exception)
-                //    {
-                //        Console.WriteLine("Error : cannot get response");
-                //    }
-                //}
+                var config = NodeConfig.FromFile(opts.ConfigPath);
+                using (var system = XmlMessageSystem.Create(config))
+                {
+                    system.Start();
+                    Console.WriteLine("Press Control-C to stop.");
+                    _quitEvent.WaitOne();
+                    //while (Console.ReadKey(true).Key != ConsoleKey.Enter)
+                    //{
+                    //    try
+                    //    {
+                    //        var answer = system.SendMessageAndAwaitResponse(XmlMessage.FromString(@"<ping>Ping</ping>"), null);
+                    //        Console.WriteLine("Message1 received : {0}", answer?.Content);
+                    //    }
+                    //    catch (Exception)
+                    //    {
+                    //        Console.WriteLine("Error : cannot get response");
+                    //    }
+                    //    try
+                    //    {
+                    //        var answer2 = system.SendMessageAndAwaitResponse(XmlMessage.FromString(@"<plic>Plic</plic>"), null);
+                    //        Console.WriteLine("Message2 received : {0}", answer2?.Content);
+                    //    }
+                    //    catch (Exception)
+                    //    {
+                    //        Console.WriteLine("Error : cannot get response");
+                    //    }
+                    //}
+                }
+                System.Environment.Exit(0);
             }
-            System.Environment.Exit(0);
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error : {0}", ex.Message);
+                System.Environment.Exit(1);
+            }
         }
 
         static void HandleParseError(IEnumerable<Error> errors)
         {
-            System.Environment.Exit(1);
+            System.Environment.Exit(2);
         }
     }
 }
