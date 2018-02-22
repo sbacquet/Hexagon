@@ -29,6 +29,12 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Hexagon.AkkaNode.Sample2", 
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Hexagon.Automation", "Hexagon.Automation\Hexagon.Automation.csproj", "{6968DBBC-D4CE-4FAB-AC0A-4D0CABB7D84D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hexagon.AkkaRest", "Hexagon.AkkaRest\Hexagon.AkkaRest.csproj", "{36F2ACCA-0F0B-4EBE-8B60-CAC2D299DFD9}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Hexagon.AkkaXmlRestServer", "Hexagon.AkkaXmlRestServer\Hexagon.AkkaXmlRestServer.csproj", "{FE709335-1B6F-477F-AEE1-B55B3A70557B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hexagon.AkkaXmlRestConverterSample1", "Hexagon.AkkaXmlRestConverterSample1\Hexagon.AkkaXmlRestConverterSample1.csproj", "{3D73F979-EBC6-4B3F-B23F-9E93B2EB93E8}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -87,6 +93,18 @@ Global
 		{6968DBBC-D4CE-4FAB-AC0A-4D0CABB7D84D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6968DBBC-D4CE-4FAB-AC0A-4D0CABB7D84D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{6968DBBC-D4CE-4FAB-AC0A-4D0CABB7D84D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{36F2ACCA-0F0B-4EBE-8B60-CAC2D299DFD9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{36F2ACCA-0F0B-4EBE-8B60-CAC2D299DFD9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{36F2ACCA-0F0B-4EBE-8B60-CAC2D299DFD9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{36F2ACCA-0F0B-4EBE-8B60-CAC2D299DFD9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FE709335-1B6F-477F-AEE1-B55B3A70557B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FE709335-1B6F-477F-AEE1-B55B3A70557B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FE709335-1B6F-477F-AEE1-B55B3A70557B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FE709335-1B6F-477F-AEE1-B55B3A70557B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3D73F979-EBC6-4B3F-B23F-9E93B2EB93E8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3D73F979-EBC6-4B3F-B23F-9E93B2EB93E8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3D73F979-EBC6-4B3F-B23F-9E93B2EB93E8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3D73F979-EBC6-4B3F-B23F-9E93B2EB93E8}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

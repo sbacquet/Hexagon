@@ -5,8 +5,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Newtonsoft.Json" Version="11.0.1" />
-    <PackageReference Include="System.Management.Automation.dll" Version="10.0.10586" />
+    <ProjectReference Include="..\Hexagon.AkkaRest\Hexagon.AkkaRest.csproj" />
   </ItemGroup>
 
 </Project>

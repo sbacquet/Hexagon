@@ -6,7 +6,10 @@
 
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="11.0.1" />
-    <PackageReference Include="System.Management.Automation.dll" Version="10.0.10586" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Hexagon\Hexagon.csproj" />
   </ItemGroup>
 
 </Project>
