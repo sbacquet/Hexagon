@@ -25,7 +25,7 @@ namespace Hexagon.AkkaImpl
         readonly ActorSystem ActorSystem;
         public IActorRef Mediator => DistributedPubSub.Get(ActorSystem).Mediator;
         public IActorRef Replicator => DistributedData.Get(ActorSystem).Replicator;
-        public readonly NodeConfig NodeConfig;
+        public readonly AkkaNodeConfig NodeConfig;
         readonly ActorDirectory<M,P> ActorDirectory;
 
         static AkkaMessageSystem<M, P> _instance = null;
@@ -44,7 +44,7 @@ namespace Hexagon.AkkaImpl
             ActorSystem system, 
             IMessageFactory<M> factory,
             IMessagePatternFactory<P> patternFactory,
-            NodeConfig nodeConfig)
+            AkkaNodeConfig nodeConfig)
             : base(factory, patternFactory, new Logger(system.Log))
         {
             ActorSystem = system;
@@ -153,7 +153,11 @@ namespace Hexagon.AkkaImpl
                 var mainReceiver = new ActorPathMessageReceiver<M>(mainReceiverPath, Mediator);
                 return await mainReceiver.AskAsync(message, MessageFactory, timeout ?? TimeSpan.FromSeconds(10), cancellationToken);
             }
-            return default(M);
+            else
+            {
+                Logger.Warning(@"No primary receiver found for message {0}", message);
+                return default(M); // Normal ?
+            }
         }
 
         public override async Task StartAsync(PatternActionsRegistry<M, P> registry = null)
@@ -241,7 +245,7 @@ namespace Hexagon.AkkaImpl
                 else
                 {
                     string router = props.Router ?? Constants.DefaultRouter;
-                    Logger.Debug("Deploying remote actor {0} with router {1}", actorName, router);
+                    Logger.Debug(@"Deploying remote processing unit ""{0}"" with router ""{1}""", actorName, router);
                     actorProps =
                         new ClusterRouterPool(
                             GetRouterPool(router),
@@ -259,11 +263,11 @@ namespace Hexagon.AkkaImpl
                                 .ToArray()));
                 }
                 var actor = ActorSystem.ActorOf(actorProps, actorName);
-                Logger.Debug("Actor {0} created properly, path = {1}", actorName, actor.Path.ToStringWithoutAddress());
+                Logger.Debug(@"Processing unit ""{0}"" created properly, path = {1}", actorName, actor.Path.ToStringWithoutAddress());
                 actors.Add((actor, group.Select(entry => entry.Pattern)));
             };
             await RegisterToGlobalDirectoryAsync(actors);
-            Logger.Debug("Actors registered properly");
+            Logger.Debug("Processing units registered properly");
         }
 
         Pool GetRouterPool(string routerName)
@@ -295,7 +299,7 @@ namespace Hexagon.AkkaImpl
         public static AkkaMessageSystem<M, P> Create<M, P>(
             IMessageFactory<M> messageFactory,
             IMessagePatternFactory<P> patternFactory,
-            NodeConfig nodeConfig)
+            AkkaNodeConfig nodeConfig)
             where P : IMessagePattern<M>
             where M : IMessage
         {
@@ -304,7 +308,7 @@ namespace Hexagon.AkkaImpl
             return new AkkaMessageSystem<M, P>(actorSystem, messageFactory, patternFactory, nodeConfig);
         }
 
-        public static Config DefaultAkkaConfig(NodeConfig nodeConfig)
+        public static Config DefaultAkkaConfig(AkkaNodeConfig nodeConfig)
         {
             var roles = string.Join(",", nodeConfig.Roles.Union(new[] { Hexagon.Constants.NodeRoleName }).Distinct().Select(item => $"\"{item}\""));
             var seeds = string.Join(",", nodeConfig.SeedNodes.Select(item => $@"""akka.tcp://{nodeConfig.SystemName}@{item}"""));
@@ -319,21 +323,22 @@ namespace Hexagon.AkkaImpl
                     akka.cluster.pub-sub.role = {Hexagon.Constants.NodeRoleName}
                     akka.cluster.distributed-data.role = {Hexagon.Constants.NodeRoleName}
                 ")
+                .WithFallback(nodeConfig.Akka)
                 .WithFallback(DistributedData.DefaultConfig())
                 .WithFallback(DistributedPubSub.DefaultConfig());
         }
     }
 
-    public static class XmlMessageSystem
+    public static class AkkaXmlMessageSystem
     {
-        public static AkkaMessageSystem<XmlMessage, XmlMessagePattern> Create(NodeConfig nodeConfig)
+        public static AkkaMessageSystem<XmlMessage, XmlMessagePattern> Create(AkkaNodeConfig nodeConfig)
             => AkkaMessageSystem.Create(
                 new XmlMessageFactory(),
                 new XmlMessagePatternFactory(),
                 nodeConfig
                 );
 
-        public static AkkaMessageSystem<XmlMessage, XmlMessagePattern> Create(ActorSystem system, NodeConfig nodeConfig)
+        public static AkkaMessageSystem<XmlMessage, XmlMessagePattern> Create(ActorSystem system, AkkaNodeConfig nodeConfig)
             => new AkkaMessageSystem<XmlMessage, XmlMessagePattern>(
                 system,
                 new XmlMessageFactory(),
@@ -342,16 +347,16 @@ namespace Hexagon.AkkaImpl
                 );
     }
 
-    public static class JsonMessageSystem
+    public static class AkkaJsonMessageSystem
     {
-        public static AkkaMessageSystem<JsonMessage, JsonMessagePattern> Create(NodeConfig nodeConfig)
+        public static AkkaMessageSystem<JsonMessage, JsonMessagePattern> Create(AkkaNodeConfig nodeConfig)
             => AkkaMessageSystem.Create(
                 new JsonMessageFactory(),
                 new JsonMessagePatternFactory(),
                 nodeConfig
                 );
 
-        public static AkkaMessageSystem<JsonMessage, JsonMessagePattern> Create(ActorSystem system, NodeConfig nodeConfig)
+        public static AkkaMessageSystem<JsonMessage, JsonMessagePattern> Create(ActorSystem system, AkkaNodeConfig nodeConfig)
             => new AkkaMessageSystem<JsonMessage, JsonMessagePattern>(
                 system,
                 new JsonMessageFactory(),

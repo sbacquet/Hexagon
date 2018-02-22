@@ -53,7 +53,7 @@ namespace Hexagon.AkkaXmlRestServer
                 // We don't want to load message handlers in the Rest server
                 config.NodeConfig.Assemblies.Clear();
 
-                using (var messageSystem = XmlMessageSystem.Create(config.NodeConfig))
+                using (var messageSystem = AkkaXmlMessageSystem.Create(config.NodeConfig))
                 using (var restServer = new HttpServer())
                 {
                     messageSystem.Start();

@@ -72,13 +72,13 @@ namespace Hexagon.AkkaImpl.MultinodeTests
             RunOn(() =>
             {
                 Cluster.Join(Node(to).Address);
-                var nodeConfig = new NodeConfig(from.Name);
+                var nodeConfig = new AkkaNodeConfig(from.Name);
                 if (from.Name == "deployer")
                 {
                     nodeConfig.AddThisAssembly();
                     nodeConfig.SetProcessingUnitProps(new NodeConfig.ProcessingUnitProps("routed") { RouteOnRole = "routeHere", TotalMaxRoutees = 3, AllowLocalRoutee = true });
                 }
-                _messageSystem = XmlMessageSystem.Create(this.Sys, nodeConfig);
+                _messageSystem = AkkaXmlMessageSystem.Create(this.Sys, nodeConfig);
             }, from);
             EnterBarrier(from.Name + "-joined");
         }

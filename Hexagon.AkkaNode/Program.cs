@@ -36,8 +36,8 @@ namespace Hexagon.AkkaNode
 
             try
             {
-                var config = NodeConfig.FromFile(opts.ConfigPath);
-                using (var system = XmlMessageSystem.Create(config))
+                var config = NodeConfig.FromFile<AkkaNodeConfig>(opts.ConfigPath);
+                using (var system = AkkaXmlMessageSystem.Create(config))
                 {
                     system.Start();
                     Console.WriteLine("Press Control-C to stop.");

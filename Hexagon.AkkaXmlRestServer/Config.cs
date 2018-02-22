@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
+using Hexagon.AkkaImpl;
 
 namespace Hexagon.AkkaXmlRestServer
 {
@@ -13,7 +14,7 @@ namespace Hexagon.AkkaXmlRestServer
         [XmlArrayItem("Name")]
         public List<string> Assemblies { get; private set; }
         [XmlElement(ElementName = "Node")]
-        public NodeConfig NodeConfig;
+        public AkkaNodeConfig NodeConfig;
         public int RequestTimeoutInSeconds;
 
         public Config()

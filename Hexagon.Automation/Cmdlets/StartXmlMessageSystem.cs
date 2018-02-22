@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using System.Management.Automation;
 using Hexagon;
 using System.Threading;
+using Hexagon.AkkaImpl;
 
 namespace Hexagon.Automation.Cmdlets
 {
@@ -60,7 +61,7 @@ namespace Hexagon.Automation.Cmdlets
             switch (ImplType)
             {
                 case EImplType.Akka:
-                    return Hexagon.AkkaImpl.XmlMessageSystem.Create(Hexagon.NodeConfig.FromFile(NodeConfig));
+                    return AkkaXmlMessageSystem.Create(Hexagon.NodeConfig.FromFile<AkkaNodeConfig>(NodeConfig));
                 default:
                     throw new ArgumentException("only Akka implementation type is handled");
             }

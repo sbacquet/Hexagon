@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Management.Automation;
 using Hexagon;
+using Hexagon.AkkaImpl;
 
 namespace Hexagon.Automation.Cmdlets
 {
@@ -21,15 +22,15 @@ namespace Hexagon.Automation.Cmdlets
 
         protected override void EndProcessing()
         {
-            var config = Hexagon.NodeConfig.FromFile(NodeConfig);
-            var cleanConfig = new Hexagon.NodeConfig(config.NodeId) { SystemName = config.SystemName };
+            var config = Hexagon.NodeConfig.FromFile<AkkaNodeConfig>(NodeConfig);
+            var cleanConfig = new AkkaNodeConfig(config.NodeId) { SystemName = config.SystemName };
             foreach (var seedNode in config.SeedNodes)
                 cleanConfig.AddSeedNode(seedNode);
             MessageSystem <XmlMessage, XmlMessagePattern> xmlMessageSystem = null;
             switch (ImplType)
             {
                 case EImplType.Akka:
-                    xmlMessageSystem = Hexagon.AkkaImpl.XmlMessageSystem.Create(cleanConfig);
+                    xmlMessageSystem = AkkaXmlMessageSystem.Create(cleanConfig);
                     break;
                 default:
                     throw new ArgumentException("only Akka implementation type is handled");

@@ -55,10 +55,10 @@ namespace Hexagon
                         foreach (var output in outputs)
                             sender.Tell(messageSystem.MessageFactory.FromString(output.ToString()), self);
                     }
-                    else if (logger.IsDebugEnabled)
+                    else if (logger.IsInfoEnabled)
                     {
                         foreach (var output in outputs)
-                            logger.Debug(@"Powershell output: {0}", output);
+                            logger.Info(@"Powershell output: {0}", output);
                     }
                 }
             };

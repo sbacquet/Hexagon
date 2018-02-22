@@ -75,8 +75,8 @@ namespace Hexagon.AkkaImpl.MultinodeTests
             RunOn(() =>
             {
                 Cluster.Join(Node(to).Address);
-                var nodeConfig = new NodeConfig(from.Name);
-                _messageSystem = XmlMessageSystem.Create(this.Sys, nodeConfig);
+                var nodeConfig = new AkkaNodeConfig(from.Name);
+                _messageSystem = AkkaXmlMessageSystem.Create(this.Sys, nodeConfig);
             }, from);
             EnterBarrier(from.Name + "-joined");
         }

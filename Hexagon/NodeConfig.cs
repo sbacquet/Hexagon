@@ -5,6 +5,7 @@ using System.Xml.Serialization;
 
 namespace Hexagon
 {
+    [XmlRoot("Node")]
     public class NodeConfig
     {
         public class ProcessingUnitProps
@@ -58,18 +59,20 @@ namespace Hexagon
             NodeId = nodeId;
         }
 
-        public static NodeConfig FromFile(string filePath)
+        public static T FromFile<T>(string filePath)
+            where T : NodeConfig
         {
-            var ser = new System.Xml.Serialization.XmlSerializer(typeof(NodeConfig));
+            var ser = new System.Xml.Serialization.XmlSerializer(typeof(T));
             using (var reader = new System.IO.StreamReader(filePath))
             {
-                return (NodeConfig)ser.Deserialize(reader);
+                return (T)ser.Deserialize(reader);
             }
         }
 
-        public void ToFile(string filePath)
+        public void ToFile<T>(string filePath)
+            where T : NodeConfig
         {
-            var ser = new System.Xml.Serialization.XmlSerializer(typeof(NodeConfig));
+            var ser = new System.Xml.Serialization.XmlSerializer(typeof(T));
             using (var writer = new System.IO.StreamWriter(filePath))
             {
                 ser.Serialize(writer, this);
