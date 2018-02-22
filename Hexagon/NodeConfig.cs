@@ -53,16 +53,9 @@ namespace Hexagon
             SeedNodes = new List<string>();
         }
 
-        public NodeConfig(string nodeId)
+        public NodeConfig(string nodeId) : this()
         {
-            SystemName = "MessageSystem";
             NodeId = nodeId;
-            GossipTimeFrameInSeconds = 5;
-            GossipSynchroAttemptCount = 3;
-            Roles = new List<string>();
-            Assemblies = new List<string>();
-            ActorsPropsDict = new Dictionary<string, ActorProps>();
-            SeedNodes = new List<string>();
         }
 
         public static NodeConfig FromFile(string filePath)

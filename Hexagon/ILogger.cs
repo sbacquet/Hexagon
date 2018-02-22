@@ -11,19 +11,19 @@ namespace Hexagon
         //
         // Summary:
         //     The debug log level.
-        DebugLevel = 0,
+        Debug = 0,
         //
         // Summary:
         //     The information log level.
-        InfoLevel = 1,
+        Info = 1,
         //
         // Summary:
         //     The warning log level.
-        WarningLevel = 2,
+        Warning = 2,
         //
         // Summary:
         //     The error log level.
-        ErrorLevel = 3
+        Error = 3
     }
 
     public interface ILogger
