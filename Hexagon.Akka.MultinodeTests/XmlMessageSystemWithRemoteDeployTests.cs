@@ -76,7 +76,7 @@ namespace Hexagon.AkkaImpl.MultinodeTests
                 if (from.Name == "deployer")
                 {
                     nodeConfig.AddThisAssembly();
-                    nodeConfig.SetActorProps(new NodeConfig.ActorProps("routed") { RouteOnRole = "routeHere", TotalMaxRoutees = 3, AllowLocalRoutee = true });
+                    nodeConfig.SetProcessingUnitProps(new NodeConfig.ProcessingUnitProps("routed") { RouteOnRole = "routeHere", TotalMaxRoutees = 3, AllowLocalRoutee = true });
                 }
                 _messageSystem = XmlMessageSystem.Create(this.Sys, nodeConfig);
             }, from);

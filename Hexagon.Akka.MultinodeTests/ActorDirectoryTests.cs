@@ -100,7 +100,7 @@ namespace Hexagon.AkkaImpl.MultinodeTests
                 {
                     _actorDirectory
                     .PublishPatterns(
-                        (ActorPath.Parse(string.Format("akka://cluster/user/{0}", _nodeConfig.GetActorFullName("test1"))),
+                        (ActorPath.Parse(string.Format("akka://cluster/user/{0}", _nodeConfig.GetProcessingUnitName("test1"))),
                         new[]
                         {
                             new XmlMessagePattern(
@@ -121,7 +121,7 @@ namespace Hexagon.AkkaImpl.MultinodeTests
                 {
                     _actorDirectory
                     .PublishPatterns(
-                        (ActorPath.Parse(string.Format("akka://cluster/user/{0}", _nodeConfig.GetActorFullName("test2"))),
+                        (ActorPath.Parse(string.Format("akka://cluster/user/{0}", _nodeConfig.GetProcessingUnitName("test2"))),
                         new[]
                         {
                             new XmlMessagePattern(

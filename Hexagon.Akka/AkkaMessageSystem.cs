@@ -228,10 +228,9 @@ namespace Hexagon.AkkaImpl
             foreach (var group in groups)
             {
                 string processingUnitId = group.Key;
-                string actorName = NodeConfig.GetActorFullName(processingUnitId);
                 var resource = registry.GetProcessingUnitResource(processingUnitId);
-
-                var props = NodeConfig.GetActorProps(actorName);
+                var props = NodeConfig.GetProcessingUnitProps(processingUnitId);
+                string actorName = NodeConfig.GetProcessingUnitName(processingUnitId);
                 string routeOnRole = props?.RouteOnRole;
                 Props actorProps;
                 if (routeOnRole == null)
