@@ -38,14 +38,15 @@ namespace Hexagon
         public void Start(PatternActionsRegistry<M, P> registry = null)
             => StartAsync(registry).Wait();
 
-        protected static Action<M, ICanReceiveMessage<M>, ICanReceiveMessage<M>, MessageSystem<M, P>, ILogger> PowershellScriptToAction(string script, bool respondWithOutput)
-            => (message, sender, self, messageSystem, logger) =>
+        protected static Action<M, ICanReceiveMessage<M>, ICanReceiveMessage<M>, Lazy<IDisposable>, MessageSystem<M, P>, ILogger> PowershellScriptToAction(string script, bool respondWithOutput)
+            => (message, sender, self, resource, messageSystem, logger) =>
             {
                 var outputs = new PowershellScriptExecutor(logger).Execute(
                     script,
                     ("message", message.ToPowershell()),
                     ("sender", sender),
                     ("self", self),
+                    ("resource", resource),
                     ("messageSystem", messageSystem));
                 if (outputs != null)
                 {
@@ -61,6 +62,7 @@ namespace Hexagon
                     }
                 }
             };
+
         public abstract void Dispose();
     }
 }

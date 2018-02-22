@@ -106,7 +106,7 @@ namespace Hexagon.AkkaImpl.MultinodeTests
         {
             registry.AddAction(
                 new XmlMessagePattern(@"/question1"),
-                (m, sender, self, ms, logger) =>
+                (m, sender, self, resource, ms, logger) =>
                 {
                     sender.Tell(XmlMessage.FromString($@"<answer1>{self.Path}</answer1>"), self);
                 },
@@ -125,15 +125,12 @@ namespace Hexagon.AkkaImpl.MultinodeTests
         {
             Within(TimeSpan.FromSeconds(60), () =>
             {
-                RunOn(() =>
-                {
-                    _messageSystem.Start();
-                }, _deployTarget1, _deployTarget2);
-                EnterBarrier("2-deploy-target-started");
+                _messageSystem.Start();
+
+                EnterBarrier("2-message-system-started");
 
                 RunOn(() =>
                 {
-                    _messageSystem.Start();
                     var sender = new ActorRefMessageReceiver<XmlMessage>(TestActor);
                     _messageSystem.SendMessage(XmlMessage.FromString(@"<question1></question1>"), sender);
                     _messageSystem.SendMessage(XmlMessage.FromString(@"<question1></question1>"), sender);

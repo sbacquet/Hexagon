@@ -107,7 +107,7 @@ namespace Hexagon.AkkaImpl.MultinodeTests
                 {
                     _registry.AddAsyncAction(
                         new XmlMessagePattern($@"/request[@routeto = ""{_first.Name}""]"),
-                        async (message, sender, self, messageSystem, logger) =>
+                        async (message, sender, self, resource, messageSystem, logger) =>
                         {
                             XmlMessage answer = await messageSystem.SendMessageAndAwaitResponseAsync(XmlMessage.FromString(@"<question>Why?</question>"), self);
                             answer.Should().Match<XmlMessage>(mess => mess.Match(@"/answer[. = ""Because.""]"));
@@ -120,7 +120,7 @@ namespace Hexagon.AkkaImpl.MultinodeTests
                 {
                     _registry.AddAction(
                         new XmlMessagePattern(true, @"/request"),
-                        (message, sender, self, messageSystem, logger) =>
+                        (message, sender, self, resource, messageSystem, logger) =>
                         {
                             TestActor.Tell("OK");
                         },

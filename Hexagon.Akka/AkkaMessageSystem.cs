@@ -223,11 +223,12 @@ namespace Hexagon.AkkaImpl
 
         private async Task CreateActorsAsync(PatternActionsRegistry<M, P> registry)
         {
-            var groups = registry.LookupByKey();
+            var groups = registry.LookupByProcessingUnit();
             List<(IActorRef actor, IEnumerable<P> patterns)> actors = new List<(IActorRef actor, IEnumerable<P> patterns)>();
             foreach (var group in groups)
             {
                 string actorName = NodeConfig.GetActorFullName(group.Key);
+                var resource = registry.GetProcessingUnitResource(actorName);
 
                 var props = NodeConfig.GetActorProps(actorName);
                 string routeOnRole = props?.RouteOnRole;
@@ -235,7 +236,7 @@ namespace Hexagon.AkkaImpl
                 if (routeOnRole == null)
                 {
                     var (actions, asyncActions) = GetActions(group.AsEnumerable());
-                    actorProps = Props.Create<Actor<M, P>>(actions, asyncActions, MessageFactory, NodeConfig, this);
+                    actorProps = Props.Create<Actor<M, P>>(actions, asyncActions, MessageFactory, NodeConfig, this, resource);
                 }
                 else
                 {

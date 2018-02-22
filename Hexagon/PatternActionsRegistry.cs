@@ -16,27 +16,33 @@ namespace Hexagon
         public class MessageRegistryEntry
         {
             public P Pattern;
-            public Action<M, ICanReceiveMessage<M>, ICanReceiveMessage<M>, MessageSystem<M, P>, ILogger> Action;
-            public Func<M, ICanReceiveMessage<M>, ICanReceiveMessage<M>, MessageSystem<M, P>, ILogger, Task> AsyncAction;
+            public Action<M, ICanReceiveMessage<M>, ICanReceiveMessage<M>, Lazy<IDisposable>, MessageSystem<M, P>, ILogger> Action;
+            public Func<M, ICanReceiveMessage<M>, ICanReceiveMessage<M>, Lazy<IDisposable>, MessageSystem<M, P>, ILogger, Task> AsyncAction;
             public string Code;
             public EActionType CodeType;
-            public string Key;
+            public string ProcessingUnitId;
         }
 
-        List<MessageRegistryEntry> Registry;
+        readonly List<MessageRegistryEntry> Registry;
+
+        readonly Dictionary<string, Lazy<IDisposable>> ProcessingUnitResources;
 
         public PatternActionsRegistry()
         {
             Registry = new List<MessageRegistryEntry>();
+            ProcessingUnitResources = new Dictionary<string, Lazy<IDisposable>>();
         }
 
         public void AddRegistry(PatternActionsRegistry<M, P> registry)
         {
             if (registry != null)
+            {
                 Registry.AddRange(registry.Registry);
+                registry.ProcessingUnitResources.ToList().ForEach(x => ProcessingUnitResources[x.Key] = x.Value);
+            }
         }
 
-        public void AddAction(P pattern, Action<M, ICanReceiveMessage<M>, ICanReceiveMessage<M>, MessageSystem<M, P>, ILogger> action, string key)
+        public void AddAction(P pattern, Action<M, ICanReceiveMessage<M>, ICanReceiveMessage<M>, Lazy<IDisposable>, MessageSystem<M, P>, ILogger> action, string processingUnitId)
         {
             Registry.Add(new MessageRegistryEntry
             {
@@ -44,11 +50,11 @@ namespace Hexagon
                 Action = action,
                 CodeType = EActionType.Code,
                 Code = System.Reflection.Assembly.GetCallingAssembly().GetName().FullName,
-                Key = key
+                ProcessingUnitId = processingUnitId
             });
         }
 
-        public void AddAsyncAction(P pattern, Func<M, ICanReceiveMessage<M>, ICanReceiveMessage<M>, MessageSystem<M, P>, ILogger, Task> action, string key)
+        public void AddAsyncAction(P pattern, Func<M, ICanReceiveMessage<M>, ICanReceiveMessage<M>, Lazy<IDisposable>, MessageSystem<M, P>, ILogger, Task> action, string processingUnitId)
         {
             Registry.Add(new MessageRegistryEntry
             {
@@ -56,36 +62,36 @@ namespace Hexagon
                 AsyncAction = action,
                 CodeType = EActionType.Code,
                 Code = System.Reflection.Assembly.GetCallingAssembly().GetName().FullName,
-                Key = key
+                ProcessingUnitId = processingUnitId
             });
         }
 
-        public void AddPowershellScript(P pattern, System.Management.Automation.ScriptBlock script, string key)
+        public void AddPowershellScript(P pattern, System.Management.Automation.ScriptBlock script, string processingUnitId)
         {
-            AddPowershellScript(pattern, script.ToString(), key);
+            AddPowershellScript(pattern, script.ToString(), processingUnitId);
         }
 
-        public void AddPowershellScript(P pattern, string script, string key)
+        public void AddPowershellScript(P pattern, string script, string processingUnitId)
         {
             Registry.Add(new MessageRegistryEntry
             {
                 Pattern = pattern,
                 Code = script,
                 CodeType = EActionType.PowershellScript,
-                Key = key
+                ProcessingUnitId = processingUnitId
             });
         }
 
-        public void AddPowershellScriptBody(P pattern, string scriptBody, string key)
+        public void AddPowershellScriptBody(P pattern, string scriptBody, string processingUnitId)
         {
             AddPowershellScript(
                 pattern, 
-                string.Format("param($message, $sender, $self, $messageSystem) {0}", scriptBody), 
-                key);
+                string.Format("param($message, $sender, $self, $resource, $messageSystem) {0}", scriptBody), 
+                processingUnitId);
         }
 
-        public ILookup<string, MessageRegistryEntry> LookupByKey()
-            => Registry.ToLookup(entry => entry.Key);
+        public ILookup<string, MessageRegistryEntry> LookupByProcessingUnit()
+            => Registry.ToLookup(entry => entry.ProcessingUnitId);
 
         // Load actions from the assembly, looking for a method with attribute PatternActionsRegistration
         // Returns Code actions only
@@ -100,6 +106,15 @@ namespace Hexagon
                 AddRegistry(registry);
             else
                 Registry.AddRange(registry.Registry.Where(entry => filter(entry)));
+        }
+
+        public void SetProcessingUnitResource(string processingUnitId, Lazy<IDisposable> resource)
+            => ProcessingUnitResources[processingUnitId] = resource;
+
+        public Lazy<IDisposable> GetProcessingUnitResource(string processingUnitId)
+        {
+            ProcessingUnitResources.TryGetValue(processingUnitId, out Lazy<IDisposable> resource);
+            return resource;
         }
     }
 }

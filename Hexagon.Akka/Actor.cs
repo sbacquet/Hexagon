@@ -10,17 +10,18 @@ namespace Hexagon.AkkaImpl
         where P : IMessagePattern<M>
         where M : IMessage
     {
-        Logger Logger;
+        readonly Logger Logger;
+        readonly Lazy<IDisposable> Resource;
 
         public class ActionWithFilter
         {
-            public Action<M, ActorRefMessageReceiver<M>, ActorRefMessageReceiver<M>, MessageSystem<M, P>, ILogger> Action;
+            public Action<M, ActorRefMessageReceiver<M>, ActorRefMessageReceiver<M>, Lazy<IDisposable>, MessageSystem<M, P>, ILogger> Action;
             public Predicate<M> Filter;
         }
 
         public class AsyncActionWithFilter
         {
-            public Func<M, ActorRefMessageReceiver<M>, ActorRefMessageReceiver<M>, MessageSystem<M, P>, ILogger, Task> Action;
+            public Func<M, ActorRefMessageReceiver<M>, ActorRefMessageReceiver<M>, Lazy<IDisposable>, MessageSystem<M, P>, ILogger, Task> Action;
             public Predicate<M> Filter;
         }
 
@@ -30,9 +31,10 @@ namespace Hexagon.AkkaImpl
             public P Pattern;
         }
 
-        public Actor(IEnumerable<ActionWithFilter> actions, IEnumerable<AsyncActionWithFilter> asyncActions, IMessageFactory<M> factory, NodeConfig nodeConfig, AkkaMessageSystem<M, P> messageSystem)
+        public Actor(IEnumerable<ActionWithFilter> actions, IEnumerable<AsyncActionWithFilter> asyncActions, IMessageFactory<M> factory, NodeConfig nodeConfig, AkkaMessageSystem<M, P> messageSystem, Lazy<IDisposable> resource)
         {
             Logger = new Logger(Akka.Event.Logging.GetLogger(Context));
+            Resource = resource;
             CreateReceivers(actions, asyncActions, factory, nodeConfig, messageSystem);
         }
 
@@ -62,7 +64,8 @@ namespace Hexagon.AkkaImpl
                         break;
                 }
             }
-            var actorEntries = registry.LookupByKey()[name];
+            Resource = registry.GetProcessingUnitResource(name);
+            var actorEntries = registry.LookupByProcessingUnit()[name];
             var (actions, asyncActions) = AkkaMessageSystem<M, P>.GetActions(actorEntries);
 
             CreateReceivers(actions, asyncActions, messageSystem.MessageFactory, messageSystem.NodeConfig, messageSystem);
@@ -80,6 +83,7 @@ namespace Hexagon.AkkaImpl
                             message, 
                             new ActorRefMessageReceiver<M>(Context.Sender),
                             new ActorRefMessageReceiver<M>(Context.Self),
+                            Resource,
                             messageSystem,
                             Logger
                             ),
@@ -94,11 +98,25 @@ namespace Hexagon.AkkaImpl
                             message,
                             new ActorRefMessageReceiver<M>(Context.Sender),
                             new ActorRefMessageReceiver<M>(Context.Self),
+                            Resource,
                             messageSystem,
                             Logger
                             ),
                         asyncAction.Filter);
                 }
+        }
+
+        protected override void PreRestart(Exception reason, object message)
+        {
+            Logger.Warning(@"Actor ""{0}"" will be restarted because of exception ""{1}"", disposing resources...", Context.Self.Path.Name, reason.Message);
+            base.PreRestart(reason, message);
+        }
+
+        protected override void PostStop()
+        {
+            if (Resource != null && Resource.IsValueCreated)
+                Resource.Value.Dispose();
+            base.PostStop();
         }
 
         protected override void PostRestart(Exception reason)

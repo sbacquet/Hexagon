@@ -14,9 +14,13 @@ namespace Hexagon.AkkaNode.Sample1
         {
             registry.AddAction(
                 new XmlMessagePattern(@"/ping"),
-                (message, sender, self, ms, logger) =>
+                (message, sender, self, resource, ms, logger) =>
                 {
                     logger.Info(@"Received {0}", message);
+                    var xml = message.AsPathNavigable();
+                    var ping = xml.CreateNavigator().Select(@"/ping");
+                    if (ping.Current.Value == "crash")
+                        throw new Exception("Crash requested");
                     sender.Tell(XmlMessage.FromString($@"<pong>{self.Path}</pong>"), self);
                 },
                 "actor1");
