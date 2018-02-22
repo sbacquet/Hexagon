@@ -38,9 +38,8 @@ namespace Hexagon.AkkaImpl
             CreateReceivers(actions, asyncActions, factory, nodeConfig, messageSystem);
         }
 
-        public Actor((EActionType Type, (string[] Conjuncts, bool IsSecondary) Pattern, string Code)[] actionCodes)
+        public Actor(string processingUnitId, (EActionType Type, (string[] Conjuncts, bool IsSecondary) Pattern, string Code)[] actionCodes)
         {
-            string name = Context.Self.Path.Name;
             Logger = new Logger(Akka.Event.Logging.GetLogger(Context));
             var messageSystem = AkkaMessageSystem<M, P>.Instance;
             var registry = new PatternActionsRegistry<M, P>();
@@ -51,21 +50,21 @@ namespace Hexagon.AkkaImpl
                 {
                     case EActionType.Code:
                         if (Logger.IsDebugEnabled)
-                            Logger.Debug(@"For remote actor ""{0}"", adding actions from assembly ""{1}""", name, action.Code);
+                            Logger.Debug(@"For remote processing unit ""{0}"", adding actions from assembly ""{1}""", processingUnitId, action.Code);
                         registry.AddActionsFromAssembly(action.Code, entry => entry.CodeType == EActionType.Code);
                         break;
                     case EActionType.PowershellScript:
                         if (Logger.IsDebugEnabled)
-                            Logger.Debug(@"For remote actor ""{0}"", adding Powershell script", name);
+                            Logger.Debug(@"For remote processing unit ""{0}"", adding Powershell script", processingUnitId);
                         registry.AddPowershellScript(
                             messageSystem.PatternFactory.FromConjuncts(action.Pattern.Conjuncts, action.Pattern.IsSecondary), 
-                            action.Code, 
-                            name);
+                            action.Code,
+                            processingUnitId);
                         break;
                 }
             }
-            Resource = registry.GetProcessingUnitResource(name);
-            var actorEntries = registry.LookupByProcessingUnit()[name];
+            Resource = registry.GetProcessingUnitResource(processingUnitId);
+            var actorEntries = registry.LookupByProcessingUnit()[processingUnitId];
             var (actions, asyncActions) = AkkaMessageSystem<M, P>.GetActions(actorEntries);
 
             CreateReceivers(actions, asyncActions, messageSystem.MessageFactory, messageSystem.NodeConfig, messageSystem);
@@ -108,21 +107,24 @@ namespace Hexagon.AkkaImpl
 
         protected override void PreRestart(Exception reason, object message)
         {
-            Logger.Warning(@"Actor ""{0}"" will be restarted because of exception ""{1}"", disposing resources...", Context.Self.Path.Name, reason.Message);
+            Logger.Warning(@"Processing unit ""{0}"" will be restarted because of exception ""{1}""", Context.Self.Path.Name, reason.Message);
             base.PreRestart(reason, message);
         }
 
         protected override void PostStop()
         {
             if (Resource != null && Resource.IsValueCreated)
+            {
+                Logger.Info(@"Disposing resources of processing unit ""{0}""", Context.Self.Path.Name);
                 Resource.Value.Dispose();
+            }
             base.PostStop();
         }
 
         protected override void PostRestart(Exception reason)
         {
             base.PostRestart(reason);
-            Logger.Warning(@"Actor ""{0}"" has been restarted because of exception ""{1}""", Context.Self.Path.Name, reason.Message);
+            Logger.Info(@"Processing unit ""{0}"" has been restarted.", Context.Self.Path.Name);
         }
     }
 }

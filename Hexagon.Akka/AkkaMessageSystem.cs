@@ -227,8 +227,9 @@ namespace Hexagon.AkkaImpl
             List<(IActorRef actor, IEnumerable<P> patterns)> actors = new List<(IActorRef actor, IEnumerable<P> patterns)>();
             foreach (var group in groups)
             {
-                string actorName = NodeConfig.GetActorFullName(group.Key);
-                var resource = registry.GetProcessingUnitResource(actorName);
+                string processingUnitId = group.Key;
+                string actorName = NodeConfig.GetActorFullName(processingUnitId);
+                var resource = registry.GetProcessingUnitResource(processingUnitId);
 
                 var props = NodeConfig.GetActorProps(actorName);
                 string routeOnRole = props?.RouteOnRole;
@@ -248,6 +249,7 @@ namespace Hexagon.AkkaImpl
                             new ClusterRouterPoolSettings(props.TotalMaxRoutees, props.MaxRouteesPerNode, props.AllowLocalRoutee, routeOnRole))
                         .Props(
                             Props.Create<Actor<M, P>>(
+                                processingUnitId,
                                 group
                                 .Select(
                                     entry =>

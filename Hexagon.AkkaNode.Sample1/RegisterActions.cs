@@ -9,6 +9,14 @@ namespace Hexagon.AkkaNode.Sample1
 {
     class RegisterActions
     {
+        class FakeResource : IDisposable
+        {
+            public void Dispose()
+            {
+                // Nothing
+            }
+        }
+
         [PatternActionsRegistration]
         static void Register(PatternActionsRegistry<XmlMessage, XmlMessagePattern> registry)
         {
@@ -20,10 +28,16 @@ namespace Hexagon.AkkaNode.Sample1
                     var xml = message.AsPathNavigable();
                     var ping = xml.CreateNavigator().Select(@"/ping");
                     if (ping.Current.Value == "crash")
+                    {
+                        // Pretend to use the lazy resource
+                        var res = resource.Value;
                         throw new Exception("Crash requested");
+                    }
                     sender.Tell(XmlMessage.FromString($@"<pong>{self.Path}</pong>"), self);
                 },
                 "actor1");
+
+            registry.SetProcessingUnitResource("actor1", new Lazy<IDisposable>(() => new FakeResource()));
         }
     }
 }
