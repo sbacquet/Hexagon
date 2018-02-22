@@ -18,13 +18,4 @@
     <ProjectReference Include="..\Hexagon\Hexagon.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <None Update="Akka.MultiNodeTestRunner.exe.config">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Akka.NodeTestRunner.exe.config">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
-
 </Project>
