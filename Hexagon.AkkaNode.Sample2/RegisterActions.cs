@@ -17,7 +17,9 @@ namespace Hexagon.AkkaNode.Sample2
                 (message, sender, self, resource, ms, logger) =>
                 {
                     logger.Info(@"Received {0}", message);
-                    sender.Tell(XmlMessage.FromString($@"<ploc>{self.Path}</ploc>"), self);
+                    var xml = message.AsPathNavigable();
+                    var plic = xml.CreateNavigator().Select(@"/plic");
+                    sender.Tell(XmlMessage.FromString($@"<ploc>{plic.Current.Value}</ploc>"), self);
                 },
                 "actor2");
         }

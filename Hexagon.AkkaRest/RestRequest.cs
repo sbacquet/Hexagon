@@ -22,9 +22,6 @@ namespace Hexagon.AkkaRest
         public static JObject BodyToJson(string body)
             => JObject.Parse(body);
 
-        public static T BodyToObject<T>(string body)
-            => BodyToJson(body).ToObject<T>();
-
         public static bool MatchBody(JObject body, params string[] jsonPathConjuncts)
             => jsonPathConjuncts.All(jsonPath => body.SelectTokens(jsonPath).Any());
     }

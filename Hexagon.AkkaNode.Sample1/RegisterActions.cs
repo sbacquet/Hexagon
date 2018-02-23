@@ -33,7 +33,7 @@ namespace Hexagon.AkkaNode.Sample1
                         var res = resource.Value;
                         throw new Exception("Crash requested");
                     }
-                    sender.Tell(XmlMessage.FromString($@"<pong>{self.Path}</pong>"), self);
+                    sender.Tell(XmlMessage.FromString($@"<pong>{ping.Current.Value}</pong>"), self);
                 },
                 "actor1");
 

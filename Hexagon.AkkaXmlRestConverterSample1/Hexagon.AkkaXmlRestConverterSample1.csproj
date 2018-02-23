@@ -8,4 +8,8 @@
     <ProjectReference Include="..\Hexagon.AkkaRest\Hexagon.AkkaRest.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Reference Include="Microsoft.CSharp" />
+  </ItemGroup>
+
 </Project>
