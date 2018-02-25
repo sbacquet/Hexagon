@@ -4,6 +4,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml.XPath;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace Hexagon
 {
@@ -57,6 +59,12 @@ namespace Hexagon
 
         public static XmlMessage FromXml(System.Xml.XmlDocument xml)
             => new XmlMessage { Content = xml.InnerXml };
+
+        public static XmlMessage FromJson(string json)
+            => FromXml(JsonConvert.DeserializeXmlNode(json));
+
+        public JObject ToJson()
+            => JObject.Parse(JsonConvert.SerializeXmlNode(AsXml()));
 
         public bool Match(string path)
             => this.AsPathNavigable().CreateNavigator().SelectSingleNode(path) != null;

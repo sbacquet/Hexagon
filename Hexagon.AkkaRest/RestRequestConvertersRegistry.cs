@@ -1,10 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Reflection;
 using Newtonsoft.Json.Linq;
+using System.Text.RegularExpressions;
 
 namespace Hexagon.AkkaRest
 {
@@ -13,16 +15,30 @@ namespace Hexagon.AkkaRest
         public class Converter
         {
             public Predicate<RestRequest> Match;
-            public Func<RestRequest, (M message, bool expectResponse)?> Convert;
+            public Func<RestRequest, (M message, bool expectResponse)?> ConvertFromRequest;
+            public Func<M, JObject> ConvertToResponse;
 
-            public static Converter FromPOST(Func<JObject, (M message, bool expectResponse)?> convert, params string[] jsonPathConjuncts)
+            public static Converter FromPOST(string pathRegex, Func<string[], JObject, M> convertFromPathAndBody, bool expectResponse, Func<M, JObject> convertToResponse, params string[] jsonPathConjuncts)
                 => new Converter
                 {
                     Match = request =>
                     request.Method == RestRequest.EMethod.POST
+                    && Regex.IsMatch(request.Path, pathRegex)
                     && RestRequest.MatchBody(RestRequest.BodyToJson(request.Body), jsonPathConjuncts),
 
-                    Convert = request => convert(RestRequest.BodyToJson(request.Body))
+                    ConvertFromRequest = request => (convertFromPathAndBody(request.Path.Substring(1).Split('/'), RestRequest.BodyToJson(request.Body)), expectResponse),
+
+                    ConvertToResponse = convertToResponse
+                };
+
+            public static Converter FromGET(string pathRegex, Func<string[], NameValueCollection, M> convertFromPathAndQuery, Func<M, JObject> convertToResponse)
+                => new Converter
+                {
+                    Match = request => request.Method == RestRequest.EMethod.GET && Regex.IsMatch(request.Path, pathRegex),
+
+                    ConvertFromRequest = request => (convertFromPathAndQuery(request.Path.Substring(1).Split('/'), request.Query), true),
+
+                    ConvertToResponse = convertToResponse
                 };
         }
 
@@ -32,7 +48,7 @@ namespace Hexagon.AkkaRest
             => Converters.Add(converter);
 
         public (M message, bool expectResponse)? Convert(RestRequest request)
-            => GetMatchingConverter(request)?.Convert(request);
+            => GetMatchingConverter(request)?.ConvertFromRequest(request);
 
         Converter GetMatchingConverter(RestRequest request)
             => Converters.FirstOrDefault(converter => converter.Match(request));

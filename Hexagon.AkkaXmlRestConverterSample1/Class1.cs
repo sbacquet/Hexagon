@@ -14,21 +14,25 @@ namespace Hexagon.AkkaXmlRestConverterSample1
         [RestRequestConvertersRegistration]
         static void Registration(RestRequestConvertersRegistry<XmlMessage> registry)
         {
-            registry.AddConverter(new XmlConverter()
-            {
-                Match = request => request.Method == RestRequest.EMethod.GET && request.Path == @"/ping",
-                Convert = request => (XmlMessage.FromString(@"<ping />"), true)
-            });
+            registry.AddConverter(XmlConverter.FromGET(
+                @"/ping", 
+                (path, query) => XmlMessage.FromString(string.Format(@"<ping>{0}</ping>", path.Length > 1 ? path[1] : "")), 
+                message => message.ToJson()));
             registry.AddConverter(XmlConverter.FromPOST(
-                bodyJson => (XmlMessage.FromString($@"<ping>{(bodyJson as dynamic).ping}</ping>"), true), // TODO: convert body to xml
+                @"/",
+                (path, bodyJson) => XmlMessage.FromJson(bodyJson.ToString()), 
+                true,
+                message => message.ToJson(),
                 "$.ping"));
-            registry.AddConverter(new XmlConverter()
-            {
-                Match = request => request.Method == RestRequest.EMethod.GET && request.Path == @"/plic",
-                Convert = request => (XmlMessage.FromString(@"<plic />"), true)
-            });
+            registry.AddConverter(XmlConverter.FromGET(
+                @"/plic",
+                (path, query) => XmlMessage.FromString(string.Format(@"<plic>{0}</plic>", path.Length > 1 ? path[1] : "")),
+                message => message.ToJson()));
             registry.AddConverter(XmlConverter.FromPOST(
-                bodyJson => (XmlMessage.FromString($@"<plic>{(bodyJson as dynamic).plic}</plic>"), true), // TODO: convert body to xml
+                @"/",
+                (path, bodyJson) => XmlMessage.FromJson(bodyJson.ToString()),
+                true,
+                message => message.ToJson(),
                 "$.plic"));
         }
     }
