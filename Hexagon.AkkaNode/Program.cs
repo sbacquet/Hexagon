@@ -14,6 +14,9 @@ namespace Hexagon.AkkaNode
     {
         [Option('c', "config", Required = false, HelpText = "The config file to load.")]
         public string ConfigPath { get; set; }
+
+        [Option('g', "generateConfig", Required = false, HelpText = "Generate an empty config file template.")]
+        public bool GenerateConfig { get; set; }
     }
     class Program
     {
@@ -28,6 +31,14 @@ namespace Hexagon.AkkaNode
 
         static void RunOptionsAndReturnExitCode(Options opts)
         {
+            if (opts.GenerateConfig)
+            {
+                const string cTemplate = ".\\config_template.xml";
+                new AkkaNodeConfig().ToFile<AkkaNodeConfig>(cTemplate);
+                Console.WriteLine(@"Template config file ""{0}"" created.", cTemplate);
+                System.Environment.Exit(0);
+            }
+
             Console.CancelKeyPress += (sender, e) =>
             {
                 _quitEvent.Set();

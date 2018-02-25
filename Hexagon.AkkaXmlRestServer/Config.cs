@@ -8,6 +8,7 @@ using Hexagon.AkkaImpl;
 
 namespace Hexagon.AkkaXmlRestServer
 {
+    [XmlRoot("RESTServer")]
     public class Config
     {
         public int Port;
@@ -21,7 +22,7 @@ namespace Hexagon.AkkaXmlRestServer
         {
             Port = 0;
             Assemblies = new List<string>();
-            NodeConfig = null;
+            NodeConfig = new AkkaNodeConfig();
             RequestTimeoutInSeconds = 10;
         }
 
