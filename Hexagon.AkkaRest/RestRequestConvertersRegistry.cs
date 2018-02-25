@@ -47,10 +47,7 @@ namespace Hexagon.AkkaRest
         public void AddConverter(Converter converter)
             => Converters.Add(converter);
 
-        public (M message, bool expectResponse)? Convert(RestRequest request)
-            => GetMatchingConverter(request)?.ConvertFromRequest(request);
-
-        Converter GetMatchingConverter(RestRequest request)
+        public Converter GetMatchingConverter(RestRequest request)
             => Converters.FirstOrDefault(converter => converter.Match(request));
 
         public void AddConvertersFromAssembly(string assemblyName)

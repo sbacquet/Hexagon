@@ -133,7 +133,8 @@ namespace Hexagon.AkkaXmlRestServer
                 try
                 {
                     RestRequest restRequest = HttpToRestRequest(e.Request);
-                    var matchingMessage = registry.Convert(restRequest);
+                    var converter = registry.GetMatchingConverter(restRequest);
+                    var matchingMessage = converter?.ConvertFromRequest(restRequest);
                     if (matchingMessage.HasValue)
                     {
                         if (matchingMessage.Value.expectResponse)
@@ -143,8 +144,8 @@ namespace Hexagon.AkkaXmlRestServer
                             {
                                 if (response != null)
                                 {
-                                    string jsonResponse = JsonConvert.SerializeXmlNode(response.AsXml());
-                                    writer.Write(jsonResponse);
+                                    var responseJson = converter.ConvertToResponse(response);
+                                    writer.Write(responseJson.ToString());
                                     e.Response.ContentType = "application/json";
                                 }
                                 else
@@ -183,7 +184,7 @@ namespace Hexagon.AkkaXmlRestServer
                 {
                     using (var writer = new StreamWriter(e.Response.OutputStream))
                     {
-                        writer.Write(@"Unknown error : {0}", ex.Message);
+                        writer.Write(@"Error : {0}", ex.Message);
                     }
                     e.Response.ContentType = "text/plain";
                     e.Response.StatusCode = 500;
