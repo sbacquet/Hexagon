@@ -14,7 +14,6 @@ namespace Hexagon
             public ProcessingUnitProps(string name) { Name = name; }
             [XmlAttribute("Name")]
             public string Name;
-            public bool Untrustworthy = false;
             public int MistrustFactor = 1;
             public string RouteOnRole = null;
             public string Router = null;
@@ -87,10 +86,7 @@ namespace Hexagon
 
         public void SetProcessingUnitProps(ProcessingUnitProps props)
         {
-            if (props.Untrustworthy)
-                props.MistrustFactor = props.MistrustFactor > 1 ? props.MistrustFactor : 2;
-            else
-                props.MistrustFactor = 1;
+            props.MistrustFactor = Math.Abs(props.MistrustFactor);
             ProcessingUnitPropsDict[props.Name] = props;
         }
 

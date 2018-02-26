@@ -93,17 +93,27 @@ namespace Hexagon.AkkaImpl
 
         string GetMainReceiverPath(IEnumerable<ActorDirectory<M,P>.MatchingActor> primaryActors)
         {
-            System.Diagnostics.Debug.Assert(primaryActors.All(actor => actor.IsSecondary == false));
+            System.Diagnostics.Debug.Assert(primaryActors.Any());
+            System.Diagnostics.Debug.Assert(primaryActors.All(actor => !actor.IsSecondary));
+
+            if (primaryActors.Count() == 1)
+                return primaryActors.First().Path;
+
+            // Keep only active actors (with MistrustFactor > 0)
+            var activePrimaryActors = primaryActors.Where(actor => actor.MistrustFactor > 0);
+            if (!activePrimaryActors.Any())
+                // All actors have MistrustFactor = 0, let's consider they are all 1
+                activePrimaryActors = primaryActors.Select(actor => actor.WithMistrustFactor(1));
 
             // Look for the primary actors with highest matching score
-            var primaryActorsOrderdedByMatchingScore = primaryActors.OrderByDescending(ma => ma.MatchingScore);
+            var primaryActorsOrderdedByMatchingScore = activePrimaryActors.OrderByDescending(ma => ma.MatchingScore);
             int highestMatchingScore = primaryActorsOrderdedByMatchingScore.First().MatchingScore;
             var mainPrimaryActors = primaryActorsOrderdedByMatchingScore.TakeWhile(ma => ma.MatchingScore == highestMatchingScore);
             if (mainPrimaryActors.Count() == 1)
             {
                 // If only one, return it
                 var selectedActor = mainPrimaryActors.First();
-                if (Logger.IsDebugEnabled && primaryActors.Count() > 1)
+                if (Logger.IsDebugEnabled)
                     Logger.Debug($"Primary actor {selectedActor.Path} selected by highest matching score {highestMatchingScore}");
                 return selectedActor.Path;
             }

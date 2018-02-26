@@ -37,6 +37,8 @@ namespace Hexagon.AkkaImpl
             public int MatchingScore;
             public int MistrustFactor;
             public bool IsSecondary;
+            public MatchingActor WithMistrustFactor(int mf)
+                => new MatchingActor { Path = this.Path, MatchingScore = this.MatchingScore, MistrustFactor = mf, IsSecondary = this.IsSecondary };
         }
 
         public async Task<IEnumerable<MatchingActor>> GetMatchingActorsAsync(M message, IMessagePatternFactory<P> messagePatternFactory)

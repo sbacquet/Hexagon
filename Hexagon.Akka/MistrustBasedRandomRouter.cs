@@ -40,6 +40,8 @@ namespace Hexagon.AkkaImpl
 
         public static int SelectIndex(int[] mistrustFactors)
         {
+            if (mistrustFactors.Length > 1)
+                mistrustFactors = mistrustFactors.Where(factor => factor > 0).ToArray();
             int product = mistrustFactors.Aggregate(1, (prod, factor) => prod * factor);
             int[] weights = mistrustFactors.Select(factor => product / factor).ToArray();
             var indexedWeights = weights.Select((weight, index) => (index, weight));

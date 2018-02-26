@@ -6,11 +6,13 @@
 
   <ItemGroup>
     <Compile Remove="JsonMessageSerializer.cs" />
+    <Compile Remove="MistrustBasedRandomGenerator.cs" />
     <Compile Remove="XmlMessageSerializer.cs" />
   </ItemGroup>
 
   <ItemGroup>
     <None Include="JsonMessageSerializer.cs" />
+    <None Include="MistrustBasedRandomGenerator.cs" />
     <None Include="XmlMessageSerializer.cs" />
   </ItemGroup>
 
