@@ -9,4 +9,8 @@
     <ProjectReference Include="..\Hexagon\Hexagon.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Reference Include="Microsoft.CSharp" />
+  </ItemGroup>
+
 </Project>

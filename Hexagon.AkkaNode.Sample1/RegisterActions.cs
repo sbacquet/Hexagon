@@ -25,15 +25,14 @@ namespace Hexagon.AkkaNode.Sample1
                 (message, sender, self, resource, ms, logger) =>
                 {
                     logger.Info(@"Received {0}", message);
-                    var xml = message.AsPathNavigable();
-                    var ping = xml.CreateNavigator().Select(@"/ping");
-                    if (ping.Current.Value == "crash")
+                    dynamic xml = message.AsDynamic();
+                    if (xml.ping == "crash")
                     {
                         // Pretend to use the lazy resource
                         var res = resource.Value;
                         throw new Exception("Crash requested");
                     }
-                    sender.Tell(XmlMessage.FromString($@"<pong>{ping.Current.Value}</pong>"), self);
+                    sender.Tell(XmlMessage.FromString($@"<pong>{xml.ping}</pong>"), self);
                 },
                 "actor1");
 
