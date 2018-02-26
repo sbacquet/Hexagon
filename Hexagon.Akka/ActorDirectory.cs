@@ -191,14 +191,20 @@ namespace Hexagon.AkkaImpl
             }
         }
 
-        public async Task<IEnumerable<(string nodeId, string processingUnitId, int mistrustFactor, string nodeAddress, string actorPath)>> 
-            GetMistrustFactors(IEnumerable<(string nodeId, string processingUnitId)> mistrustFactors)
+        public async Task<IEnumerable<(
+            string nodeId, 
+            string processingUnitId, 
+            int mistrustFactor, 
+            string nodeAddress, 
+            string actorPath,
+            (string[] conjuncts, bool isSecondary)[] patterns)>> 
+            GetProcessingUnits(IEnumerable<(string nodeId, string processingUnitId)> mistrustFactors)
         {
             var cluster = Cluster.Get(ActorSystem);
             var replicator = DistributedData.Get(ActorSystem).Replicator;
             GetKeysIdsResult keys = await replicator.Ask<GetKeysIdsResult>(Dsl.GetKeyIds);
             var matchingActors = new List<MatchingActor>();
-            var factors = new List<(string nodeId, string processingUnitId, int mistrustFactor, string nodeAddress, string actorPath)>();
+            var factors = new List<(string nodeId, string processingUnitId, int mistrustFactor, string nodeAddress, string actorPath, (string[], bool)[] patterns)>();
             foreach (var node in keys.Keys)
             {
                 var setKey = new LWWRegisterKey<ActorProps[]>(node);
@@ -219,7 +225,9 @@ namespace Hexagon.AkkaImpl
                                     processingUnitId: processingUnitId, 
                                     mistrustFactor: found.MistrustFactor,
                                     nodeAddress: node,
-                                    actorPath: found.Path)
+                                    actorPath: found.Path,
+                                    patterns: found.Patterns.Select(pattern => (pattern.Conjuncts, pattern.IsSecondary)).ToArray()
+                                    )
                                 );
                         }
                     }
@@ -234,7 +242,9 @@ namespace Hexagon.AkkaImpl
                                 processingUnitId: ap.ProcessingUnitId,
                                 mistrustFactor: ap.MistrustFactor,
                                 nodeAddress: node,
-                                actorPath: ap.Path)
+                                actorPath: ap.Path,
+                                patterns: ap.Patterns.Select(pattern => (pattern.Conjuncts, pattern.IsSecondary)).ToArray()
+                                )
                             )
                         );
                     }

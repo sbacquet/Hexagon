@@ -8,16 +8,34 @@ using Hexagon.AkkaImpl;
 
 namespace Hexagon.Automation.Cmdlets
 {
-    [Cmdlet(VerbsCommon.Get, "MistrustFactors")]
-    public class GetMistrustFactors : PSCmdlet
+    [Cmdlet(VerbsCommon.Get, "ProcessingUnit")]
+    public class GetProcessingUnit : PSCmdlet
     {
-        [Parameter(Mandatory = true, ValueFromPipeline = true)]
+        [Parameter(Mandatory = true)]
         public AkkaMessageSystem<XmlMessage, XmlMessagePattern> System { get; set; }
+
+        [Parameter(Mandatory = true, ValueFromPipelineByPropertyName = true)]
+        public string NodeId { get; set; }
+
+        [Parameter(Mandatory = true, ValueFromPipelineByPropertyName = true)]
+        public string ProcessingUnitId { get; set; }
+
+        List<(string nodeId, string puId)> ProcessingUnits;
+
+        protected override void BeginProcessing()
+        {
+            ProcessingUnits = new List<(string nodeId, string puId)>();
+        }
+
+        protected override void ProcessRecord()
+        {
+            ProcessingUnits.Add((NodeId, ProcessingUnitId));
+        }
 
         protected override void EndProcessing()
         {
             Hexagon.AkkaImpl.ActorDirectory<XmlMessage, XmlMessagePattern> directory = new AkkaImpl.ActorDirectory<XmlMessage, XmlMessagePattern>(System.ActorSystem);
-            var results = directory.GetMistrustFactors(null).Result;
+            var results = directory.GetProcessingUnits(ProcessingUnits).Result;
             if (results.Any())
             {
                 WriteObject(
@@ -27,7 +45,8 @@ namespace Hexagon.Automation.Cmdlets
                         ProcessingUnitId = result.processingUnitId,
                         MistrustFactor = result.mistrustFactor,
                         ClusterNode = result.nodeAddress,
-                        ActorPath = result.actorPath
+                        ActorPath = result.actorPath,
+                        Patterns = result.patterns.Select(pattern => new { Conjuncts = pattern.conjuncts, IsSecondary = pattern.isSecondary }).ToArray()
                     }),
                     true
                 );
