@@ -46,7 +46,11 @@ namespace Hexagon.Automation.Cmdlets
                         MistrustFactor = result.mistrustFactor,
                         ClusterNode = result.nodeAddress,
                         ActorPath = result.actorPath,
-                        Patterns = result.patterns.Select(pattern => new { Conjuncts = pattern.conjuncts, IsSecondary = pattern.isSecondary }).ToArray()
+                        Patterns = result.patterns.Select(pattern => new
+                        {
+                            Conjuncts = pattern.conjuncts,
+                            IsSecondary = pattern.isSecondary
+                        }).ToArray()
                     }),
                     true
                 );
