@@ -78,13 +78,13 @@ namespace Hexagon.AkkaImpl
             return matchingActors;
         }
 
-        public async Task PublishPatternsAsync(params (ActorPath actorPath, P[] patterns)[] actorsToPublish)
+        public async Task PublishPatternsAsync(params (string puId, ActorPath actorPath, P[] patterns)[] actorsToPublish)
         {
             var actorPropsList = actorsToPublish?.Select(actor => new ActorProps
             {
                 Path = actor.actorPath.ToStringWithoutAddress(),
                 Patterns = actor.patterns,
-                MistrustFactor = NodeConfig.GetMistrustFactor(actor.actorPath.Name)
+                MistrustFactor = NodeConfig.GetMistrustFactor(actor.puId)
             });
             var cluster = Cluster.Get(ActorSystem);
             var replicator = DistributedData.Get(ActorSystem).Replicator;
@@ -107,7 +107,7 @@ namespace Hexagon.AkkaImpl
             }
         }
 
-        public void PublishPatterns(params (ActorPath actorPath, P[] patterns)[] actorsToPublish)
+        public void PublishPatterns(params (string puId, ActorPath actorPath, P[] patterns)[] actorsToPublish)
             => PublishPatternsAsync(actorsToPublish).Wait();
 
         public async Task<bool> RemoveNodeActorsAsync(UniqueAddress node)

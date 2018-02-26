@@ -228,7 +228,7 @@ namespace Hexagon.AkkaImpl
         private async Task CreateActorsAsync(PatternActionsRegistry<M, P> registry)
         {
             var groups = registry.LookupByProcessingUnit();
-            List<(IActorRef actor, IEnumerable<P> patterns)> actors = new List<(IActorRef actor, IEnumerable<P> patterns)>();
+            var actors = new List<(string puId, IActorRef actor, IEnumerable<P> patterns)>();
             foreach (var group in groups)
             {
                 string processingUnitId = group.Key;
@@ -264,7 +264,7 @@ namespace Hexagon.AkkaImpl
                 }
                 var actor = ActorSystem.ActorOf(actorProps, actorName);
                 Logger.Debug(@"Processing unit ""{0}"" created properly, path = {1}", actorName, actor.Path.ToStringWithoutAddress());
-                actors.Add((actor, group.Select(entry => entry.Pattern)));
+                actors.Add((puId: processingUnitId, actor: actor, patterns: group.Select(entry => entry.Pattern)));
             };
             await RegisterToGlobalDirectoryAsync(actors);
             Logger.Debug("Processing units registered properly");
@@ -278,12 +278,15 @@ namespace Hexagon.AkkaImpl
             return (Pool)Activator.CreateInstance(routerType, 0);
         }
 
-        async Task RegisterToGlobalDirectoryAsync(IEnumerable<(IActorRef actor, IEnumerable<P> patterns)> actors)
+        async Task RegisterToGlobalDirectoryAsync(IEnumerable<(string puId, IActorRef actor, IEnumerable<P> patterns)> actors)
         {
             foreach (var actor in actors.Select(a => a.actor).Distinct())
                 Mediator.Tell(new Put(actor));
 
-            await ActorDirectory.PublishPatternsAsync(actors.Select(a => (a.actor.Path, a.patterns.ToArray())).ToArray());
+            await ActorDirectory.PublishPatternsAsync(
+                actors
+                .Select(a => (puId: a.puId, actorPath: a.actor.Path, patterns: a.patterns.ToArray()))
+                .ToArray());
         }
 
         public override void Dispose()
