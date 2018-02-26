@@ -18,6 +18,8 @@ namespace Hexagon
 
         public T AsObject<T>() => this.AsJObject().ToObject<T>();
 
+        public dynamic AsDynamic() => AsJObject() as dynamic;
+
         public System.Management.Automation.PSObject AsPSObject<T>()
             => new System.Management.Automation.PSObject(AsObject<T>());
 

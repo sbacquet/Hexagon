@@ -66,6 +66,9 @@ namespace Hexagon
         public JObject ToJson()
             => JObject.Parse(JsonConvert.SerializeXmlNode(AsXml()));
 
+        public dynamic AsDynamic()
+            => ToJson() as dynamic;
+
         public bool Match(string path)
             => this.AsPathNavigable().CreateNavigator().SelectSingleNode(path) != null;
 
