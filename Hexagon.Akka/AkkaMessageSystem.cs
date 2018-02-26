@@ -22,7 +22,7 @@ namespace Hexagon.AkkaImpl
         where P : IMessagePattern<M>
         where M : IMessage
     {
-        readonly ActorSystem ActorSystem;
+        public readonly ActorSystem ActorSystem;
         public IActorRef Mediator => DistributedPubSub.Get(ActorSystem).Mediator;
         public IActorRef Replicator => DistributedData.Get(ActorSystem).Replicator;
         readonly ActorDirectory<M,P> ActorDirectory;

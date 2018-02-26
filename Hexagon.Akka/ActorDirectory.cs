@@ -23,8 +23,10 @@ namespace Hexagon.AkkaImpl
             Logger = Logging.GetLogger(ActorSystem, this);
         }
 
-        public struct ActorProps
+        public class ActorProps
         {
+            public string NodeId;
+            public string ProcessingUnitId;
             public string Path;
             public P[] Patterns;
             public int MistrustFactor;
@@ -80,6 +82,8 @@ namespace Hexagon.AkkaImpl
         {
             var actorPropsList = actorsToPublish?.Select(actor => new ActorProps
             {
+                NodeId = nodeConfig.NodeId,
+                ProcessingUnitId = actor.puId,
                 Path = actor.actorPath.ToStringWithoutAddress(),
                 Patterns = actor.patterns,
                 MistrustFactor = nodeConfig.GetMistrustFactor(actor.puId)
@@ -94,7 +98,7 @@ namespace Hexagon.AkkaImpl
                         setKey,
                         new LWWRegister<ActorProps[]>(cluster.SelfUniqueAddress, new ActorProps[] { }),
                         WriteLocal.Instance,
-                        reg => actorPropsList == null ? reg : 
+                        reg => actorPropsList == null ? reg :
                         new LWWRegister<ActorProps[]>(
                             cluster.SelfUniqueAddress,
                             reg.Value.Concat(actorPropsList).ToArray())
@@ -121,10 +125,10 @@ namespace Hexagon.AkkaImpl
         {
             if (Watcher == null)
                 Watcher = ActorSystem.ActorOf(
-                    Props.Create(() => 
+                    Props.Create(() =>
                     new PatternUnpublisherActor<M, P>(
                         this,
-                        timeFrame)), 
+                        timeFrame)),
                     Constants.PatternUnpublisherName);
             bool ready = false;
             for (int i = 0; i < attemptCount && !ready; ++i)
@@ -143,6 +147,98 @@ namespace Hexagon.AkkaImpl
         {
             if (Watcher != null)
                 Watcher.Tell(PoisonPill.Instance);
+        }
+
+        public async Task UpdateMistrustFactors(IEnumerable<(string nodeId, string processingUnitId, int newMistrustFactor)> mistrustFactors)
+        {
+            var cluster = Cluster.Get(ActorSystem);
+            var replicator = DistributedData.Get(ActorSystem).Replicator;
+            GetKeysIdsResult keys = await replicator.Ask<GetKeysIdsResult>(Dsl.GetKeyIds);
+            var matchingActors = new List<MatchingActor>();
+            foreach (var node in keys.Keys)
+            {
+                var setKey = new LWWRegisterKey<ActorProps[]>(node);
+                var getResponse = await replicator.Ask<IGetResponse>(Dsl.Get(setKey, ReadLocal.Instance));
+                if (!getResponse.IsSuccessful)
+                    throw new Exception($"cannot get message patterns for node {node}");
+                var actorPropsList = getResponse.Get(setKey).Value;
+                if (actorPropsList != null && actorPropsList.Any())
+                {
+                    var actorPropsByKey = actorPropsList.ToDictionary(actorProps => (actorProps.NodeId, actorProps.ProcessingUnitId));
+                    foreach (var (nodeId, processingUnitId, newMistrustFactor) in mistrustFactors)
+                    {
+                        if (actorPropsByKey.TryGetValue((nodeId, processingUnitId), out ActorProps found))
+                            found.MistrustFactor = newMistrustFactor;
+                    }
+                    var updateResponse =
+                        await replicator.Ask<IUpdateResponse>(
+                            Dsl.Update(
+                                setKey,
+                                null,
+                                WriteLocal.Instance,
+                                reg => new LWWRegister<ActorProps[]>(cluster.SelfUniqueAddress, actorPropsList)));
+                    if (!updateResponse.IsSuccessful)
+                    {
+                        Logger.Error($"cannot update mistrust factor for node {node}");
+                    }
+                    else
+                    {
+                        Logger.Info($@"Mistrust factors for node {node} updated properly");
+                    }
+                }
+            }
+        }
+
+        public async Task<IEnumerable<(string nodeId, string processingUnitId, int mistrustFactor, string nodeAddress, string actorPath)>> 
+            GetMistrustFactors(IEnumerable<(string nodeId, string processingUnitId)> mistrustFactors)
+        {
+            var cluster = Cluster.Get(ActorSystem);
+            var replicator = DistributedData.Get(ActorSystem).Replicator;
+            GetKeysIdsResult keys = await replicator.Ask<GetKeysIdsResult>(Dsl.GetKeyIds);
+            var matchingActors = new List<MatchingActor>();
+            var factors = new List<(string nodeId, string processingUnitId, int mistrustFactor, string nodeAddress, string actorPath)>();
+            foreach (var node in keys.Keys)
+            {
+                var setKey = new LWWRegisterKey<ActorProps[]>(node);
+                var getResponse = await replicator.Ask<IGetResponse>(Dsl.Get(setKey, ReadLocal.Instance));
+                if (!getResponse.IsSuccessful)
+                    throw new Exception($"cannot get message patterns for node {node}");
+                var actorPropsList = getResponse.Get(setKey).Value;
+                if (actorPropsList != null && actorPropsList.Any())
+                {
+                    if (mistrustFactors != null && mistrustFactors.Any())
+                    {
+                        var actorPropsByKey = actorPropsList.ToDictionary(actorProps => (actorProps.NodeId, actorProps.ProcessingUnitId));
+                        foreach (var (nodeId, processingUnitId) in mistrustFactors)
+                        {
+                            if (actorPropsByKey.TryGetValue((nodeId, processingUnitId), out ActorProps found))
+                                factors.Add(
+                                    (nodeId: nodeId, 
+                                    processingUnitId: processingUnitId, 
+                                    mistrustFactor: found.MistrustFactor,
+                                    nodeAddress: node,
+                                    actorPath: found.Path)
+                                );
+                        }
+                    }
+                    else
+                    {
+                        // Return all data
+                        factors.AddRange(
+                            actorPropsList
+                            .Select(
+                                ap => (
+                                nodeId: ap.NodeId,
+                                processingUnitId: ap.ProcessingUnitId,
+                                mistrustFactor: ap.MistrustFactor,
+                                nodeAddress: node,
+                                actorPath: ap.Path)
+                            )
+                        );
+                    }
+                }
+            }
+            return factors;
         }
     }
 }
