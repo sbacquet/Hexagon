@@ -25,7 +25,6 @@ namespace Hexagon.AkkaImpl
         readonly ActorSystem ActorSystem;
         public IActorRef Mediator => DistributedPubSub.Get(ActorSystem).Mediator;
         public IActorRef Replicator => DistributedData.Get(ActorSystem).Replicator;
-        public readonly AkkaNodeConfig NodeConfig;
         readonly ActorDirectory<M,P> ActorDirectory;
 
         static AkkaMessageSystem<M, P> _instance = null;
@@ -43,12 +42,10 @@ namespace Hexagon.AkkaImpl
         public AkkaMessageSystem(
             ActorSystem system, 
             IMessageFactory<M> factory,
-            IMessagePatternFactory<P> patternFactory,
-            AkkaNodeConfig nodeConfig)
+            IMessagePatternFactory<P> patternFactory)
             : base(factory, patternFactory, new Logger(system.Log))
         {
             ActorSystem = system;
-            NodeConfig = nodeConfig;
             ActorDirectory = new ActorDirectory<M, P>(system);
 
             Instance = this;
@@ -160,7 +157,7 @@ namespace Hexagon.AkkaImpl
             }
         }
 
-        public override async Task StartAsync(PatternActionsRegistry<M, P> registry = null)
+        public override async Task StartAsync(NodeConfig nodeConfig, PatternActionsRegistry<M, P> registry = null)
         {
             Logger.Info("Starting the message system...");
             // Initialize mediator
@@ -170,17 +167,17 @@ namespace Hexagon.AkkaImpl
             var actionsRegistry = new PatternActionsRegistry<M, P>();
             actionsRegistry.AddRegistry(registry);
             // Create actors from registry
-            if (NodeConfig.Assemblies != null)
+            if (nodeConfig.Assemblies != null)
             {
-                foreach (var assembly in NodeConfig.Assemblies)
+                foreach (var assembly in nodeConfig.Assemblies)
                 {
                     actionsRegistry.AddActionsFromAssembly(assembly);
                 }
             }
-            await CreateActorsAsync(actionsRegistry);
-            var timeFrame = TimeSpan.FromSeconds(NodeConfig.GossipTimeFrameInSeconds);
+            await CreateActorsAsync(nodeConfig, actionsRegistry);
+            var timeFrame = TimeSpan.FromSeconds(nodeConfig.GossipTimeFrameInSeconds);
             await Task.Delay(timeFrame);
-            bool ready = await ActorDirectory.IsReadyAsync(NodeConfig.GossipSynchroAttemptCount, timeFrame);
+            bool ready = await ActorDirectory.IsReadyAsync(nodeConfig.GossipSynchroAttemptCount, timeFrame);
             if (ready)
                 Logger.Info("Message system started and ready");
             else
@@ -226,7 +223,7 @@ namespace Hexagon.AkkaImpl
             return (actions.Union(powershellActions), asyncActions);
         }
 
-        private async Task CreateActorsAsync(PatternActionsRegistry<M, P> registry)
+        private async Task CreateActorsAsync(NodeConfig nodeConfig, PatternActionsRegistry<M, P> registry)
         {
             var groups = registry.LookupByProcessingUnit();
             var actors = new List<(string puId, IActorRef actor, IEnumerable<P> patterns)>();
@@ -234,8 +231,8 @@ namespace Hexagon.AkkaImpl
             {
                 string processingUnitId = group.Key;
                 var resource = registry.GetProcessingUnitResource(processingUnitId);
-                var props = NodeConfig.GetProcessingUnitProps(processingUnitId);
-                string actorName = NodeConfig.GetProcessingUnitName(processingUnitId);
+                var props = nodeConfig.GetProcessingUnitProps(processingUnitId);
+                string actorName = nodeConfig.GetProcessingUnitName(processingUnitId);
                 string routeOnRole = props?.RouteOnRole;
                 Props actorProps;
                 if (routeOnRole == null)
@@ -267,7 +264,7 @@ namespace Hexagon.AkkaImpl
                 Logger.Debug(@"Processing unit ""{0}"" created properly, path = {1}", actorName, actor.Path.ToStringWithoutAddress());
                 actors.Add((puId: processingUnitId, actor: actor, patterns: group.Select(entry => entry.Pattern)));
             };
-            await RegisterToGlobalDirectoryAsync(actors);
+            await RegisterToGlobalDirectoryAsync(nodeConfig, actors);
             Logger.Debug("Processing units registered properly");
         }
 
@@ -279,13 +276,13 @@ namespace Hexagon.AkkaImpl
             return (Pool)Activator.CreateInstance(routerType, 0);
         }
 
-        async Task RegisterToGlobalDirectoryAsync(IEnumerable<(string puId, IActorRef actor, IEnumerable<P> patterns)> actors)
+        async Task RegisterToGlobalDirectoryAsync(NodeConfig nodeConfig, IEnumerable<(string puId, IActorRef actor, IEnumerable<P> patterns)> actors)
         {
             foreach (var actor in actors.Select(a => a.actor).Distinct())
                 Mediator.Tell(new Put(actor));
 
             await ActorDirectory.PublishPatternsAsync(
-                NodeConfig,
+                nodeConfig,
                 actors
                 .Select(a => (puId: a.puId, actorPath: a.actor.Path, patterns: a.patterns.ToArray()))
                 .ToArray());
@@ -310,7 +307,7 @@ namespace Hexagon.AkkaImpl
         {
             var actorSystem = ActorSystem.Create(nodeConfig.SystemName, DefaultAkkaConfig(nodeConfig));
 
-            return new AkkaMessageSystem<M, P>(actorSystem, messageFactory, patternFactory, nodeConfig);
+            return new AkkaMessageSystem<M, P>(actorSystem, messageFactory, patternFactory);
         }
 
         public static Config DefaultAkkaConfig(AkkaNodeConfig nodeConfig)
@@ -343,12 +340,11 @@ namespace Hexagon.AkkaImpl
                 nodeConfig
                 );
 
-        public static AkkaMessageSystem<XmlMessage, XmlMessagePattern> Create(ActorSystem system, AkkaNodeConfig nodeConfig)
+        public static AkkaMessageSystem<XmlMessage, XmlMessagePattern> Create(ActorSystem system)
             => new AkkaMessageSystem<XmlMessage, XmlMessagePattern>(
                 system,
                 new XmlMessageFactory(),
-                new XmlMessagePatternFactory(),
-                nodeConfig
+                new XmlMessagePatternFactory()
                 );
     }
 
@@ -361,12 +357,11 @@ namespace Hexagon.AkkaImpl
                 nodeConfig
                 );
 
-        public static AkkaMessageSystem<JsonMessage, JsonMessagePattern> Create(ActorSystem system, AkkaNodeConfig nodeConfig)
+        public static AkkaMessageSystem<JsonMessage, JsonMessagePattern> Create(ActorSystem system)
             => new AkkaMessageSystem<JsonMessage, JsonMessagePattern>(
                 system,
                 new JsonMessageFactory(),
-                new JsonMessagePatternFactory(),
-                nodeConfig
+                new JsonMessagePatternFactory()
                 );
     }
 }

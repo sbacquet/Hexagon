@@ -43,9 +43,10 @@ namespace Hexagon.Automation.Cmdlets
                     registry.AddPowershellScript(xmlMessagePattern, script, key);
                 }
             }
-            using (MessageSystem<XmlMessage, XmlMessagePattern> xmlMessageSystem = CreateSystem())
+            var config = Hexagon.NodeConfig.FromFile<AkkaNodeConfig>(NodeConfig);
+            using (MessageSystem<XmlMessage, XmlMessagePattern> xmlMessageSystem = CreateSystem(config))
             {
-                xmlMessageSystem.Start(registry);
+                xmlMessageSystem.Start(config, registry);
                 Console.WriteLine("Press Control-C to stop.");
                 Console.CancelKeyPress += (sender, e) =>
                 {
@@ -56,12 +57,12 @@ namespace Hexagon.Automation.Cmdlets
             }
         }
 
-        MessageSystem<XmlMessage, XmlMessagePattern> CreateSystem()
+        MessageSystem<XmlMessage, XmlMessagePattern> CreateSystem(AkkaNodeConfig config)
         {
             switch (ImplType)
             {
                 case EImplType.Akka:
-                    return AkkaXmlMessageSystem.Create(Hexagon.NodeConfig.FromFile<AkkaNodeConfig>(NodeConfig));
+                    return AkkaXmlMessageSystem.Create(config);
                 default:
                     throw new ArgumentException("only Akka implementation type is handled");
             }

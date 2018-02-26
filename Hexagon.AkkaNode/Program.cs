@@ -50,7 +50,7 @@ namespace Hexagon.AkkaNode
                 var config = NodeConfig.FromFile<AkkaNodeConfig>(opts.ConfigPath);
                 using (var system = AkkaXmlMessageSystem.Create(config))
                 {
-                    system.Start();
+                    system.Start(config);
                     Console.WriteLine("Press Control-C to stop.");
                     _quitEvent.WaitOne();
                     //while (Console.ReadKey(true).Key != ConsoleKey.Enter)

@@ -35,7 +35,7 @@ namespace Hexagon.Automation.Cmdlets
                 default:
                     throw new ArgumentException("only Akka implementation type is handled");
             }
-            xmlMessageSystem.Start();
+            xmlMessageSystem.Start(config);
             WriteObject(xmlMessageSystem);
         }
     }

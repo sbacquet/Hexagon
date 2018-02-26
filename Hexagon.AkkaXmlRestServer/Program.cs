@@ -67,7 +67,7 @@ namespace Hexagon.AkkaXmlRestServer
                 using (var messageSystem = AkkaXmlMessageSystem.Create(config.NodeConfig))
                 using (var restServer = new HttpServer())
                 {
-                    messageSystem.Start();
+                    messageSystem.Start(config.NodeConfig);
                     StartRestServer(
                         messageSystem, 
                         restServer, 

@@ -33,10 +33,10 @@ namespace Hexagon
         public M SendMessageAndAwaitResponse(M message, ICanReceiveMessage<M> sender, TimeSpan? timeout = null, System.Threading.CancellationToken? cancellationToken = null)
             => SendMessageAndAwaitResponseAsync(message, sender, timeout, cancellationToken).Result;
 
-        public abstract Task StartAsync(PatternActionsRegistry<M, P> registry = null);
+        public abstract Task StartAsync(NodeConfig nodeConfig, PatternActionsRegistry<M, P> registry = null);
 
-        public void Start(PatternActionsRegistry<M, P> registry = null)
-            => StartAsync(registry).Wait();
+        public void Start(NodeConfig nodeConfig, PatternActionsRegistry<M, P> registry = null)
+            => StartAsync(nodeConfig, registry).Wait();
 
         protected static Action<M, ICanReceiveMessage<M>, ICanReceiveMessage<M>, Lazy<IDisposable>, MessageSystem<M, P>, ILogger> PowershellScriptToAction(string script, bool respondWithOutput)
             => (message, sender, self, resource, messageSystem, logger) =>

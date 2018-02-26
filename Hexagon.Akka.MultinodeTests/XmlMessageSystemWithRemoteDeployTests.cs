@@ -53,6 +53,7 @@ namespace Hexagon.AkkaImpl.MultinodeTests
         private readonly RoleName _deployTarget1;
         private readonly RoleName _deployTarget2;
         private readonly RoleName _deployer;
+        AkkaNodeConfig _nodeConfig;
 
         Hexagon.AkkaImpl.AkkaMessageSystem<XmlMessage, XmlMessagePattern> _messageSystem;
 
@@ -72,13 +73,13 @@ namespace Hexagon.AkkaImpl.MultinodeTests
             RunOn(() =>
             {
                 Cluster.Join(Node(to).Address);
-                var nodeConfig = new AkkaNodeConfig(from.Name);
+                _nodeConfig = new AkkaNodeConfig(from.Name);
                 if (from.Name == "deployer")
                 {
-                    nodeConfig.AddThisAssembly();
-                    nodeConfig.SetProcessingUnitProps(new NodeConfig.ProcessingUnitProps("routed") { RouteOnRole = "routeHere", TotalMaxRoutees = 3, AllowLocalRoutee = true });
+                    _nodeConfig.AddThisAssembly();
+                    _nodeConfig.SetProcessingUnitProps(new NodeConfig.ProcessingUnitProps("routed") { RouteOnRole = "routeHere", TotalMaxRoutees = 3, AllowLocalRoutee = true });
                 }
-                _messageSystem = AkkaXmlMessageSystem.Create(this.Sys, nodeConfig);
+                _messageSystem = AkkaXmlMessageSystem.Create(this.Sys);
             }, from);
             EnterBarrier(from.Name + "-joined");
         }
@@ -127,13 +128,13 @@ namespace Hexagon.AkkaImpl.MultinodeTests
             {
                 RunOn(() =>
                 {
-                    _messageSystem.Start();
+                    _messageSystem.Start(_nodeConfig);
                 }, _deployTarget1, _deployTarget2);
                 EnterBarrier("2-deploy-target-started");
 
                 RunOn(() =>
                 {
-                    _messageSystem.Start();
+                    _messageSystem.Start(_nodeConfig);
                     var sender = new ActorRefMessageReceiver<XmlMessage>(TestActor);
                     _messageSystem.SendMessage(XmlMessage.FromString(@"<question1></question1>"), sender);
                     _messageSystem.SendMessage(XmlMessage.FromString(@"<question1></question1>"), sender);

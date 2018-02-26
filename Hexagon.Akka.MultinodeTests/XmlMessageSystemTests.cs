@@ -57,6 +57,7 @@ namespace Hexagon.AkkaImpl.MultinodeTests
 
         AkkaMessageSystem<XmlMessage, XmlMessagePattern> _messageSystem;
         PatternActionsRegistry<XmlMessage, XmlMessagePattern> _registry;
+        AkkaNodeConfig _nodeConfig;
 
         public XmlMessageSystemTests() : this(new XmlMessageSystemTestsConfig())
         {
@@ -75,8 +76,8 @@ namespace Hexagon.AkkaImpl.MultinodeTests
             RunOn(() =>
             {
                 Cluster.Join(Node(to).Address);
-                var nodeConfig = new AkkaNodeConfig(from.Name);
-                _messageSystem = AkkaXmlMessageSystem.Create(this.Sys, nodeConfig);
+                _nodeConfig = new AkkaNodeConfig(from.Name);
+                _messageSystem = AkkaXmlMessageSystem.Create(this.Sys);
             }, from);
             EnterBarrier(from.Name + "-joined");
         }
@@ -132,7 +133,7 @@ namespace Hexagon.AkkaImpl.MultinodeTests
                         );
                 }, _second);
 
-                _messageSystem.Start(_registry);
+                _messageSystem.Start(_nodeConfig, _registry);
                 EnterBarrier("2-started");
 
                 RunOn(() =>
