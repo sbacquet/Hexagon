@@ -31,11 +31,11 @@ namespace Hexagon.AkkaImpl
             public P Pattern;
         }
 
-        public Actor(IEnumerable<ActionWithFilter> actions, IEnumerable<AsyncActionWithFilter> asyncActions, IMessageFactory<M> factory, NodeConfig nodeConfig, AkkaMessageSystem<M, P> messageSystem, Lazy<IDisposable> resource)
+        public Actor(IEnumerable<ActionWithFilter> actions, IEnumerable<AsyncActionWithFilter> asyncActions, IMessageFactory<M> factory, AkkaMessageSystem<M, P> messageSystem, Lazy<IDisposable> resource)
         {
             Logger = new Logger(Akka.Event.Logging.GetLogger(Context));
             Resource = resource;
-            CreateReceivers(actions, asyncActions, factory, nodeConfig, messageSystem);
+            CreateReceivers(actions, asyncActions, factory, messageSystem);
         }
 
         public Actor(string processingUnitId, (EActionType Type, (string[] Conjuncts, bool IsSecondary) Pattern, string Code)[] actionCodes)
@@ -67,10 +67,10 @@ namespace Hexagon.AkkaImpl
             var actorEntries = registry.LookupByProcessingUnit()[processingUnitId];
             var (actions, asyncActions) = AkkaMessageSystem<M, P>.GetActions(actorEntries);
 
-            CreateReceivers(actions, asyncActions, messageSystem.MessageFactory, messageSystem.NodeConfig, messageSystem);
+            CreateReceivers(actions, asyncActions, messageSystem.MessageFactory, messageSystem);
         }
 
-        void CreateReceivers(IEnumerable<ActionWithFilter> actions, IEnumerable<AsyncActionWithFilter> asyncActions, IMessageFactory<M> factory, NodeConfig nodeConfig, AkkaMessageSystem<M, P> messageSystem)
+        void CreateReceivers(IEnumerable<ActionWithFilter> actions, IEnumerable<AsyncActionWithFilter> asyncActions, IMessageFactory<M> factory, AkkaMessageSystem<M, P> messageSystem)
         {
             Receive<BytesMessage>(message => Self.Forward(factory.FromBytes(message.Bytes)));
 

@@ -68,7 +68,7 @@ namespace Hexagon.AkkaImpl.MultinodeTests
                 Cluster.Join(Node(to).Address);
                 _replicator = DistributedData.Get(Sys).Replicator;
                 _nodeConfig = new NodeConfig(from.Name);
-                _actorDirectory = new ActorDirectory<XmlMessage, XmlMessagePattern>(Sys, _nodeConfig);
+                _actorDirectory = new ActorDirectory<XmlMessage, XmlMessagePattern>(Sys);
             }, from);
             EnterBarrier(from.Name + "-joined");
         }
@@ -100,7 +100,9 @@ namespace Hexagon.AkkaImpl.MultinodeTests
                 {
                     string puId = "test1";
                     _actorDirectory
-                    .PublishPatterns((
+                    .PublishPatterns(
+                        _nodeConfig,
+                        (
                         puId: puId,
                         actorPath: ActorPath.Parse(string.Format("akka://cluster/user/{0}", _nodeConfig.GetProcessingUnitName(puId))),
                         patterns: new[]
@@ -116,14 +118,18 @@ namespace Hexagon.AkkaImpl.MultinodeTests
                                 {
                                     @"/root/value2[. = 2]"
                                 })
-                        }));
+                        }
+                        )
+                    );
                 }, _first);
 
                 RunOn(() =>
                 {
                     string puId = "test2";
                     _actorDirectory
-                    .PublishPatterns((
+                    .PublishPatterns(
+                        _nodeConfig,
+                        (
                         puId: puId,
                         actorPath: ActorPath.Parse(string.Format("akka://cluster/user/{0}", _nodeConfig.GetProcessingUnitName(puId))),
                         patterns: new[]
@@ -143,11 +149,12 @@ namespace Hexagon.AkkaImpl.MultinodeTests
 
                 EnterBarrier("2-registered");
 
-                System.Threading.Thread.Sleep(TimeSpan.FromSeconds(_nodeConfig.GossipTimeFrameInSeconds));
+                var timeFrame = TimeSpan.FromSeconds(_nodeConfig.GossipTimeFrameInSeconds);
+                System.Threading.Thread.Sleep(timeFrame);
 
                 Cluster.State.Members.Where(member => member.Status == MemberStatus.Up).Should().HaveCount(3, "there should be 3 up cluster nodes");
 
-                bool ready = _actorDirectory.IsReady();
+                bool ready = _actorDirectory.IsReady(_nodeConfig.GossipSynchroAttemptCount, timeFrame);
                 ready.Should().BeTrue("all nodes data must be ready");
 
                 EnterBarrier("3-ready");

@@ -15,14 +15,12 @@ namespace Hexagon.AkkaImpl
     {
         readonly ActorSystem ActorSystem;
         readonly ILoggingAdapter Logger;
-        readonly NodeConfig NodeConfig;
         IActorRef Watcher = null;
 
-        public ActorDirectory(ActorSystem actorSystem, NodeConfig nodeConfig)
+        public ActorDirectory(ActorSystem actorSystem)
         {
             ActorSystem = actorSystem;
             Logger = Logging.GetLogger(ActorSystem, this);
-            NodeConfig = nodeConfig;
         }
 
         public struct ActorProps
@@ -78,13 +76,13 @@ namespace Hexagon.AkkaImpl
             return matchingActors;
         }
 
-        public async Task PublishPatternsAsync(params (string puId, ActorPath actorPath, P[] patterns)[] actorsToPublish)
+        public async Task PublishPatternsAsync(NodeConfig nodeConfig, params (string puId, ActorPath actorPath, P[] patterns)[] actorsToPublish)
         {
             var actorPropsList = actorsToPublish?.Select(actor => new ActorProps
             {
                 Path = actor.actorPath.ToStringWithoutAddress(),
                 Patterns = actor.patterns,
-                MistrustFactor = NodeConfig.GetMistrustFactor(actor.puId)
+                MistrustFactor = nodeConfig.GetMistrustFactor(actor.puId)
             });
             var cluster = Cluster.Get(ActorSystem);
             var replicator = DistributedData.Get(ActorSystem).Replicator;
@@ -107,8 +105,8 @@ namespace Hexagon.AkkaImpl
             }
         }
 
-        public void PublishPatterns(params (string puId, ActorPath actorPath, P[] patterns)[] actorsToPublish)
-            => PublishPatternsAsync(actorsToPublish).Wait();
+        public void PublishPatterns(NodeConfig nodeConfig, params (string puId, ActorPath actorPath, P[] patterns)[] actorsToPublish)
+            => PublishPatternsAsync(nodeConfig, actorsToPublish).Wait();
 
         public async Task<bool> RemoveNodeActorsAsync(UniqueAddress node)
         {
@@ -119,27 +117,27 @@ namespace Hexagon.AkkaImpl
             return response.AlreadyDeleted || response.IsSuccessful;
         }
 
-        public async Task<bool> IsReadyAsync()
+        public async Task<bool> IsReadyAsync(int attemptCount, TimeSpan timeFrame)
         {
             if (Watcher == null)
                 Watcher = ActorSystem.ActorOf(
                     Props.Create(() => 
                     new PatternUnpublisherActor<M, P>(
-                        this, 
-                        TimeSpan.FromSeconds(NodeConfig.GossipTimeFrameInSeconds))), 
+                        this,
+                        timeFrame)), 
                     Constants.PatternUnpublisherName);
             bool ready = false;
-            for (int i = 0; i < NodeConfig.GossipSynchroAttemptCount && !ready; ++i)
+            for (int i = 0; i < attemptCount && !ready; ++i)
             {
                 ready = await Watcher.Ask<bool>(PatternUnpublisherActor.IsReady.Instance);
                 if (ready) break;
-                await Task.Delay(TimeSpan.FromSeconds(NodeConfig.GossipTimeFrameInSeconds));
+                await Task.Delay(timeFrame);
             }
             return ready;
         }
 
-        public bool IsReady()
-            => IsReadyAsync().Result;
+        public bool IsReady(int attemptCount, TimeSpan timeFrame)
+            => IsReadyAsync(attemptCount, timeFrame).Result;
 
         public void Dispose()
         {

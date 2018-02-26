@@ -49,7 +49,7 @@ namespace Hexagon.AkkaImpl
         {
             ActorSystem = system;
             NodeConfig = nodeConfig;
-            ActorDirectory = new ActorDirectory<M, P>(system, nodeConfig);
+            ActorDirectory = new ActorDirectory<M, P>(system);
 
             Instance = this;
         }
@@ -178,8 +178,9 @@ namespace Hexagon.AkkaImpl
                 }
             }
             await CreateActorsAsync(actionsRegistry);
-            await Task.Delay(TimeSpan.FromSeconds(NodeConfig.GossipTimeFrameInSeconds));
-            bool ready = await ActorDirectory.IsReadyAsync();
+            var timeFrame = TimeSpan.FromSeconds(NodeConfig.GossipTimeFrameInSeconds);
+            await Task.Delay(timeFrame);
+            bool ready = await ActorDirectory.IsReadyAsync(NodeConfig.GossipSynchroAttemptCount, timeFrame);
             if (ready)
                 Logger.Info("Message system started and ready");
             else
@@ -240,7 +241,7 @@ namespace Hexagon.AkkaImpl
                 if (routeOnRole == null)
                 {
                     var (actions, asyncActions) = GetActions(group.AsEnumerable());
-                    actorProps = Props.Create<Actor<M, P>>(actions, asyncActions, MessageFactory, NodeConfig, this, resource);
+                    actorProps = Props.Create<Actor<M, P>>(actions, asyncActions, MessageFactory, this, resource);
                 }
                 else
                 {
@@ -284,6 +285,7 @@ namespace Hexagon.AkkaImpl
                 Mediator.Tell(new Put(actor));
 
             await ActorDirectory.PublishPatternsAsync(
+                NodeConfig,
                 actors
                 .Select(a => (puId: a.puId, actorPath: a.actor.Path, patterns: a.patterns.ToArray()))
                 .ToArray());

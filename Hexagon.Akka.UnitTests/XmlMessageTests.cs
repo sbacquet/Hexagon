@@ -32,7 +32,6 @@ namespace Hexagon.AkkaImpl.UnitTests
                 new [] { a1 },
                 null,
                 messageFactory,
-                _nodeConfig,
                 null,
                 null)), "actor1");
             var a2 = new XmlActor.ActionWithFilter
@@ -44,7 +43,6 @@ namespace Hexagon.AkkaImpl.UnitTests
                 new [] { a2 },
                 null,
                 messageFactory,
-                _nodeConfig,
                 null,
                 null)), "actor2");
             actor2.Tell(XmlMessage.FromString("<message>OK?</message>"), TestActor);
@@ -64,7 +62,6 @@ namespace Hexagon.AkkaImpl.UnitTests
                 new[] { a1 },
                 null,
                 messageFactory,
-                _nodeConfig,
                 null,
                 null)), "actor1");
             var a2 = new XmlActor.AsyncActionWithFilter
@@ -83,7 +80,6 @@ namespace Hexagon.AkkaImpl.UnitTests
                 null,
                 new[] { a2 },
                 messageFactory,
-                _nodeConfig,
                 null,
                 null)), "actor2");
             actor2.Tell(XmlMessage.FromString("<message>test</message>"));
@@ -103,7 +99,6 @@ namespace Hexagon.AkkaImpl.UnitTests
                 new[] { a1 },
                 null,
                 messageFactory,
-                _nodeConfig,
                 null,
                 null)), "actor1");
             var r = 
