@@ -232,7 +232,7 @@ namespace Hexagon.AkkaImpl
                 string processingUnitId = group.Key;
                 var resource = registry.GetProcessingUnitResource(processingUnitId);
                 var props = nodeConfig.GetProcessingUnitProps(processingUnitId);
-                string actorName = nodeConfig.GetProcessingUnitName(processingUnitId);
+                string actorName = Hexagon.Constants.GetProcessingUnitName(nodeConfig.NodeId, processingUnitId);
                 string routeOnRole = props?.RouteOnRole;
                 Props actorProps;
                 if (routeOnRole == null)

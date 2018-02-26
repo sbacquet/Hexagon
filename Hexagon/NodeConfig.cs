@@ -79,9 +79,6 @@ namespace Hexagon
             }
         }
 
-        public string GetProcessingUnitName(string processingUnitId)
-            => $"{NodeId}_{processingUnitId}";
-
         public ProcessingUnitProps GetProcessingUnitProps(string processingUnitId)
             => ProcessingUnitPropsDict.TryGetValue(processingUnitId, out ProcessingUnitProps props) ? props : null;
 

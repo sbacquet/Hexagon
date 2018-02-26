@@ -104,7 +104,7 @@ namespace Hexagon.AkkaImpl.MultinodeTests
                         _nodeConfig,
                         (
                         puId: puId,
-                        actorPath: ActorPath.Parse(string.Format("akka://cluster/user/{0}", _nodeConfig.GetProcessingUnitName(puId))),
+                        actorPath: ActorPath.Parse(string.Format("akka://cluster/user/{0}", Hexagon.Constants.GetProcessingUnitName(_nodeConfig.NodeId, puId))),
                         patterns: new[]
                         {
                             new XmlMessagePattern(
@@ -131,7 +131,7 @@ namespace Hexagon.AkkaImpl.MultinodeTests
                         _nodeConfig,
                         (
                         puId: puId,
-                        actorPath: ActorPath.Parse(string.Format("akka://cluster/user/{0}", _nodeConfig.GetProcessingUnitName(puId))),
+                        actorPath: ActorPath.Parse(string.Format("akka://cluster/user/{0}", Hexagon.Constants.GetProcessingUnitName(_nodeConfig.NodeId, puId))),
                         patterns: new[]
                         {
                             new XmlMessagePattern(
