@@ -105,7 +105,10 @@ namespace Hexagon
             if (filter == null)
                 AddRegistry(registry);
             else
+            {
                 Registry.AddRange(registry.Registry.Where(entry => filter(entry)));
+                registry.ProcessingUnitResources.ToList().ForEach(x => ProcessingUnitResources[x.Key] = x.Value);
+            }
         }
 
         public void SetProcessingUnitResource(string processingUnitId, Lazy<IDisposable> resource)

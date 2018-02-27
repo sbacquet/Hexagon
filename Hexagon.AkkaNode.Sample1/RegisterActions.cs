@@ -24,12 +24,12 @@ namespace Hexagon.AkkaNode.Sample1
                 new XmlMessagePattern(@"/ping"),
                 (message, sender, self, resource, ms, logger) =>
                 {
+                    // Pretend to use the lazy resource
+                    var res = resource.Value;
                     logger.Info(@"Received {0}", message);
                     dynamic xml = message.AsDynamic();
                     if (xml.ping == "crash")
                     {
-                        // Pretend to use the lazy resource
-                        var res = resource.Value;
                         throw new Exception("Crash requested");
                     }
                     sender.Tell(XmlMessage.FromString($@"<pong>{xml.ping}</pong>"), self);
