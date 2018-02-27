@@ -15,11 +15,13 @@ namespace Hexagon
             [XmlAttribute("Name")]
             public string Name;
             public int MistrustFactor = 1;
-            public string RouteOnRole = null;
-            public string Router = null;
-            public int TotalMaxRoutees = 1;
+            public string RouteOnNodeRole = null;
+            public string Router = null; // Will default to Hexagon.AkkaImpl.Constants.DefaultRouter
+            public int TotalMaxClusterRoutees = 3;
             public int MaxRouteesPerNode = 1;
             public bool AllowLocalRoutee = false;
+            public int LocalRouterResizeMin = 1;
+            public int LocalRouterResizeMax = 1;
         }
         [XmlIgnore]
         Dictionary<string, ProcessingUnitProps> ProcessingUnitPropsDict;
@@ -45,7 +47,7 @@ namespace Hexagon
         {
             SystemName = "MessageSystem";
             NodeId = "node1";
-            GossipTimeFrameInSeconds = 5;
+            GossipTimeFrameInSeconds = 2;
             GossipSynchroAttemptCount = 3;
             Roles = new List<string>();
             Assemblies = new List<string>();

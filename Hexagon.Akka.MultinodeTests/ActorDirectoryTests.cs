@@ -67,7 +67,7 @@ namespace Hexagon.AkkaImpl.MultinodeTests
             {
                 Cluster.Join(Node(to).Address);
                 _replicator = DistributedData.Get(Sys).Replicator;
-                _nodeConfig = new NodeConfig(from.Name);
+                _nodeConfig = new NodeConfig(from.Name) { GossipTimeFrameInSeconds = 5 };
                 _actorDirectory = new ActorDirectory<XmlMessage, XmlMessagePattern>(Sys);
             }, from);
             EnterBarrier(from.Name + "-joined");

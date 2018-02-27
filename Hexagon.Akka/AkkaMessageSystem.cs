@@ -243,21 +243,29 @@ namespace Hexagon.AkkaImpl
                 var resource = registry.GetProcessingUnitResource(processingUnitId);
                 var props = nodeConfig.GetProcessingUnitProps(processingUnitId);
                 string actorName = Hexagon.Constants.GetProcessingUnitName(nodeConfig.NodeId, processingUnitId);
-                string routeOnRole = props?.RouteOnRole;
+                string routeOnRole = props?.RouteOnNodeRole;
                 Props actorProps;
                 if (routeOnRole == null)
                 {
                     var (actions, asyncActions) = GetActions(group.AsEnumerable());
                     actorProps = Props.Create<Actor<M, P>>(actions, asyncActions, MessageFactory, this, resource);
+                    if (props != null && !(props.LocalRouterResizeMin == 1 && props.LocalRouterResizeMax == 1))
+                    {
+                        if (props.LocalRouterResizeMin > 0 && props.LocalRouterResizeMax >= props.LocalRouterResizeMin)
+                        {
+                            string router = props.Router ?? Constants.DefaultRouter;
+                            actorProps = GetLocalRouterPool(router, props.LocalRouterResizeMin, props.LocalRouterResizeMax).Props(actorProps);
+                        }
+                    }
                 }
                 else
                 {
-                    string router = props.Router ?? Constants.DefaultRouter;
+                    string router = props?.Router ?? Constants.DefaultRouter;
                     Logger.Debug(@"Deploying remote processing unit ""{0}"" with router ""{1}""", actorName, router);
                     actorProps =
                         new ClusterRouterPool(
-                            GetRouterPool(router),
-                            new ClusterRouterPoolSettings(props.TotalMaxRoutees, props.MaxRouteesPerNode, props.AllowLocalRoutee, routeOnRole))
+                            GetClusterRouterPool(router),
+                            new ClusterRouterPoolSettings(props?.TotalMaxClusterRoutees ?? 1, props?.MaxRouteesPerNode ?? 1, props?.AllowLocalRoutee ?? false, routeOnRole))
                         .Props(
                             Props.Create<Actor<M, P>>(
                                 processingUnitId,
@@ -273,12 +281,25 @@ namespace Hexagon.AkkaImpl
                 var actor = ActorSystem.ActorOf(actorProps, actorName);
                 Logger.Debug(@"Processing unit ""{0}"" created properly, path = {1}", actorName, actor.Path.ToStringWithoutAddress());
                 actors.Add((puId: processingUnitId, actor: actor, patterns: group.Select(entry => entry.Pattern)));
-            };
+            }
             await RegisterToGlobalDirectoryAsync(nodeConfig, actors);
             Logger.Debug("Processing units registered properly");
         }
 
-        Pool GetRouterPool(string routerName)
+        Pool GetLocalRouterPool(string routerName, int resizeMin, int resizeMax)
+        {
+            var path = $"akka.actor.router.type-mapping.{routerName}-pool";
+            var routerTypeName = ActorSystem.Settings.Config.GetString(path);
+            var routerType = Type.GetType($"{routerTypeName}, Akka");
+            Resizer resizer = null;
+            if (resizeMin >= 0 && resizeMax >= resizeMin)
+                resizer = new DefaultResizer(resizeMin, resizeMax);
+            else
+                Logger.Error(@"Cannot apply resizing parameters for router ""{0}""", routerName);
+            return (Pool)Activator.CreateInstance(routerType, 0, resizer, Pool.DefaultSupervisorStrategy, Akka.Dispatch.Dispatchers.DefaultDispatcherId, false);
+        }
+
+        Pool GetClusterRouterPool(string routerName)
         {
             var path = $"akka.actor.router.type-mapping.{routerName}-pool";
             var routerTypeName = ActorSystem.Settings.Config.GetString(path);
