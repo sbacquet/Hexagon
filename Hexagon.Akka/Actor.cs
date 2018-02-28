@@ -51,7 +51,7 @@ namespace Hexagon.AkkaImpl
                     case EActionType.Code:
                         if (Logger.IsDebugEnabled)
                             Logger.Debug(@"For remote processing unit ""{0}"", adding actions from assembly ""{1}""", processingUnitId, action.Code);
-                        registry.AddActionsFromAssembly(action.Code, entry => entry.CodeType == EActionType.Code);
+                        registry.AddFromAssembly(action.Code, entry => entry.CodeType == EActionType.Code);
                         break;
                     case EActionType.PowershellScript:
                         if (Logger.IsDebugEnabled)

@@ -118,7 +118,7 @@ namespace Hexagon.AkkaImpl.UnitTests
         public void ActorFromAssembly()
         {
             var registry = new PatternActionsRegistry<XmlMessage, XmlMessagePattern>();
-            registry.AddActionsFromAssembly(System.Reflection.Assembly.GetExecutingAssembly().GetName().FullName, null);
+            registry.AddFromAssembly(System.Reflection.Assembly.GetExecutingAssembly().GetName().FullName, null);
             var lookup = registry.LookupByProcessingUnit();
             lookup.Contains("actor").Should().BeTrue();
             lookup["actor"].Count().Should().Be(1);

@@ -95,7 +95,7 @@ namespace Hexagon
 
         // Load actions from the assembly, looking for a method with attribute PatternActionsRegistration
         // Returns Code actions only
-        public void AddActionsFromAssembly(string assemblyName, Predicate<MessageRegistryEntry> filter = null)
+        public void AddFromAssembly(string assemblyName, Predicate<MessageRegistryEntry> filter = null)
         {
             var assembly = Assembly.Load(assemblyName);
             var registrationMethods = assembly.GetTypes().SelectMany(type => type.GetMethods(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.InvokeMethod).Where(method => method.GetCustomAttributes<PatternActionsRegistrationAttribute>(false).Count() > 0));

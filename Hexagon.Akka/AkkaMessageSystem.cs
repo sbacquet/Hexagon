@@ -181,7 +181,7 @@ namespace Hexagon.AkkaImpl
             {
                 foreach (var assembly in nodeConfig.Assemblies)
                 {
-                    actionsRegistry.AddActionsFromAssembly(assembly);
+                    actionsRegistry.AddFromAssembly(assembly);
                 }
             }
             await CreateActorsAsync(nodeConfig, actionsRegistry);
