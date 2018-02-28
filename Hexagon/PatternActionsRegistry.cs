@@ -25,12 +25,12 @@ namespace Hexagon
 
         readonly List<MessageRegistryEntry> Registry;
 
-        readonly Dictionary<string, Lazy<IDisposable>> ProcessingUnitResources;
+        readonly Dictionary<string, Func<ILogger, Lazy<IDisposable>>> ProcessingUnitResourceFactories;
 
         public PatternActionsRegistry()
         {
             Registry = new List<MessageRegistryEntry>();
-            ProcessingUnitResources = new Dictionary<string, Lazy<IDisposable>>();
+            ProcessingUnitResourceFactories = new Dictionary<string, Func<ILogger, Lazy<IDisposable>>>();
         }
 
         public void AddRegistry(PatternActionsRegistry<M, P> registry)
@@ -38,7 +38,7 @@ namespace Hexagon
             if (registry != null)
             {
                 Registry.AddRange(registry.Registry);
-                registry.ProcessingUnitResources.ToList().ForEach(x => ProcessingUnitResources[x.Key] = x.Value);
+                registry.ProcessingUnitResourceFactories.ToList().ForEach(x => ProcessingUnitResourceFactories[x.Key] = x.Value);
             }
         }
 
@@ -107,17 +107,17 @@ namespace Hexagon
             else
             {
                 Registry.AddRange(registry.Registry.Where(entry => filter(entry)));
-                registry.ProcessingUnitResources.ToList().ForEach(x => ProcessingUnitResources[x.Key] = x.Value);
+                registry.ProcessingUnitResourceFactories.ToList().ForEach(x => ProcessingUnitResourceFactories[x.Key] = x.Value);
             }
         }
 
-        public void SetProcessingUnitResource(string processingUnitId, Lazy<IDisposable> resource)
-            => ProcessingUnitResources[processingUnitId] = resource;
+        public void SetProcessingUnitResourceFactory(string processingUnitId, Func<ILogger, Lazy<IDisposable>> resourceFactory)
+            => ProcessingUnitResourceFactories[processingUnitId] = resourceFactory;
 
-        public Lazy<IDisposable> GetProcessingUnitResource(string processingUnitId)
+        public Func<ILogger, Lazy<IDisposable>> GetProcessingUnitResourceFactory(string processingUnitId)
         {
-            ProcessingUnitResources.TryGetValue(processingUnitId, out Lazy<IDisposable> resource);
-            return resource;
+            ProcessingUnitResourceFactories.TryGetValue(processingUnitId, out Func<ILogger, Lazy<IDisposable>> resourceFactory);
+            return resourceFactory;
         }
     }
 }

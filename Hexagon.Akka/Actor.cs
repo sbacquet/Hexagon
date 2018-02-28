@@ -63,7 +63,8 @@ namespace Hexagon.AkkaImpl
                         break;
                 }
             }
-            Resource = registry.GetProcessingUnitResource(processingUnitId);
+            var resourceFactory = registry.GetProcessingUnitResourceFactory(processingUnitId);
+            Resource = resourceFactory != null ? resourceFactory(Logger) : null;
             var actorEntries = registry.LookupByProcessingUnit()[processingUnitId];
             var (actions, asyncActions) = AkkaMessageSystem<M, P>.GetActions(actorEntries);
 

@@ -11,6 +11,10 @@ namespace Hexagon.AkkaNode.Sample1
     {
         class FakeResource : IDisposable
         {
+            public FakeResource(ILogger logger)
+            {
+                logger.Info("Fake resource created");
+            }
             public void Dispose()
             {
                 // Nothing
@@ -36,7 +40,10 @@ namespace Hexagon.AkkaNode.Sample1
                 },
                 "actor1");
 
-            registry.SetProcessingUnitResource("actor1", new Lazy<IDisposable>(() => new FakeResource()));
+            registry.SetProcessingUnitResourceFactory(
+                "actor1", 
+                logger => new Lazy<IDisposable>(() => new FakeResource(logger))
+            );
         }
     }
 }

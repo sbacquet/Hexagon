@@ -240,7 +240,6 @@ namespace Hexagon.AkkaImpl
             foreach (var group in groups)
             {
                 string processingUnitId = group.Key;
-                var resource = registry.GetProcessingUnitResource(processingUnitId);
                 var props = nodeConfig.GetProcessingUnitProps(processingUnitId);
                 string actorName = Hexagon.Constants.GetProcessingUnitName(nodeConfig.NodeId, processingUnitId);
                 string routeOnRole = props?.RouteOnNodeRole;
@@ -248,6 +247,8 @@ namespace Hexagon.AkkaImpl
                 if (routeOnRole == null)
                 {
                     var (actions, asyncActions) = GetActions(group.AsEnumerable());
+                    var resourceFactory = registry.GetProcessingUnitResourceFactory(processingUnitId);
+                    var resource = resourceFactory != null ? resourceFactory(Logger) : null;
                     actorProps = Props.Create<Actor<M, P>>(actions, asyncActions, MessageFactory, this, resource);
                     if (props != null && !(props.LocalRouterResizeMin == 1 && props.LocalRouterResizeMax == 1))
                     {

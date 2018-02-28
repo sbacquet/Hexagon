@@ -52,16 +52,18 @@ namespace Hexagon.Automation.Cmdlets
                     string processingUnitId = (string)resource.Properties["Id"].Value;
                     ScriptBlock resourceConstructor = (ScriptBlock)resource.Properties["Constructor"].Value;
                     ScriptBlock resourceDestructor = (ScriptBlock)resource.Properties["Destructor"]?.Value;
-                    registry.SetProcessingUnitResource(
+                    registry.SetProcessingUnitResourceFactory(
                         processingUnitId,
-                        new Lazy<IDisposable>(() =>
+                        logger => new Lazy<IDisposable>(() =>
                         {
-                            var outputs = new PowershellScriptExecutor(null).Execute(resourceConstructor.ToString());
+                            var outputs = new PowershellScriptExecutor(logger).Execute(resourceConstructor.ToString());
                             if (outputs == null || !outputs.Any()) return null;
                             System.Collections.Hashtable resources = outputs.First() as System.Collections.Hashtable;
                             if (resources == null) return null;
-                            return new PSResources(resources, null, resourceDestructor);
-                        }));
+                            return new PSResources(resources, logger, resourceDestructor);
+                        })
+                    );
+
                 }
             }
             var config = Hexagon.NodeConfig.FromFile<AkkaNodeConfig>(NodeConfig);
