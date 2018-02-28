@@ -24,23 +24,44 @@ namespace Hexagon.Automation.Cmdlets
         [Parameter(Mandatory = false, Position = 1)]
         public PSObject[] MessagePatterns { get; set; }
 
+        [Parameter(Mandatory = false, Position = 2)]
+        public PSObject[] Resources { get; set; }
+
         private readonly ManualResetEvent _quitEvent = new ManualResetEvent(false);
 
         protected override void EndProcessing()
         {
-            PatternActionsRegistry<XmlMessage, XmlMessagePattern> registry = null;
+            PatternActionsRegistry<XmlMessage, XmlMessagePattern> registry = new PatternActionsRegistry<XmlMessage, XmlMessagePattern>();
             if (MessagePatterns != null && MessagePatterns.Any())
             {
-                registry = new PatternActionsRegistry<XmlMessage, XmlMessagePattern>();
                 foreach (var messagePattern in MessagePatterns)
                 {
-                    string key = (string)messagePattern.Properties["Key"].Value;
+                    string processingUnitId = (string)messagePattern.Properties["Id"].Value;
                     var pattern = ((object[])messagePattern.Properties["Pattern"].Value).Select(o => (string)o).ToArray();
                     var script = (ScriptBlock)messagePattern.Properties["Script"].Value;
                     var sec = messagePattern.Properties["Secondary"];
                     bool secondary = sec != null ? (bool)sec.Value : false;
                     var xmlMessagePattern = new XmlMessagePattern(secondary, pattern);
-                    registry.AddPowershellScript(xmlMessagePattern, script, key);
+                    registry.AddPowershellScript(xmlMessagePattern, script, processingUnitId);
+                }
+            }
+            if (Resources != null && Resources.Any())
+            {
+                foreach (var resource in Resources)
+                {
+                    string processingUnitId = (string)resource.Properties["Id"].Value;
+                    ScriptBlock resourceConstructor = (ScriptBlock)resource.Properties["Constructor"].Value;
+                    ScriptBlock resourceDestructor = (ScriptBlock)resource.Properties["Destructor"]?.Value;
+                    registry.SetProcessingUnitResource(
+                        processingUnitId,
+                        new Lazy<IDisposable>(() =>
+                        {
+                            var outputs = new PowershellScriptExecutor(null).Execute(resourceConstructor.ToString());
+                            if (outputs == null || !outputs.Any()) return null;
+                            System.Collections.Hashtable resources = outputs.First() as System.Collections.Hashtable;
+                            if (resources == null) return null;
+                            return new PSResources(resources, null, resourceDestructor);
+                        }));
                 }
             }
             var config = Hexagon.NodeConfig.FromFile<AkkaNodeConfig>(NodeConfig);

@@ -1,8 +1,10 @@
-﻿using System;
+﻿using Newtonsoft.Json.Linq;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml;
 
 namespace Hexagon
 {
@@ -41,19 +43,44 @@ namespace Hexagon
         protected static Action<M, ICanReceiveMessage<M>, ICanReceiveMessage<M>, Lazy<IDisposable>, MessageSystem<M, P>, ILogger> PowershellScriptToAction(string script, bool respondWithOutput)
             => (message, sender, self, resource, messageSystem, logger) =>
             {
+                var psResources = ((PSResources)resource?.Value)?.Resources;
                 var outputs = new PowershellScriptExecutor(logger).Execute(
                     script,
                     ("message", message.ToPowershell()),
                     ("sender", sender),
                     ("self", self),
-                    ("resource", resource),
+                    ("resources", psResources),
                     ("messageSystem", messageSystem));
                 if (outputs != null)
                 {
                     if (respondWithOutput)
                     {
                         foreach (var output in outputs)
-                            sender.Tell(messageSystem.MessageFactory.FromString(output.ToString()), self);
+                        {
+                            if (output != null)
+                            {
+                                switch (output)
+                                {
+                                    case M outputMessage:
+                                        sender.Tell(outputMessage, self);
+                                        break;
+                                    case string str:
+                                        sender.Tell(messageSystem.MessageFactory.FromString(str), self);
+                                        break;
+                                    case XmlDocument xml when message is XmlMessage:
+                                        sender.Tell(messageSystem.MessageFactory.FromString(xml.InnerXml), self);
+                                        break;
+                                    case JObject json when message is JsonMessage:
+                                        sender.Tell(messageSystem.MessageFactory.FromString(json.ToString()), self);
+                                        break;
+                                    default:
+                                        logger.Error(@"Cannot send message from PS script output (type : {0})", output.GetType());
+                                        break;
+                                }
+                            }
+                            else
+                                logger.Warning("Null PS script output!");
+                        }
                     }
                     else if (logger.IsInfoEnabled)
                     {

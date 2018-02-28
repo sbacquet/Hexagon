@@ -54,12 +54,12 @@ namespace Hexagon
                             _log.Error(item.ToString());
                         }
                     }
-                    return psOutput.Select(output => output.BaseObject);
+                    return psOutput?.Select(output => output?.BaseObject);
                 }
                 catch (Exception ex)
                 {
-                    Collection<PSObject> output = new Collection<PSObject>();
-                    return output;
+                    _log.Error("Cannot execute PS script : {0}", ex.Message);
+                    return null;
                 }
             }
         }
