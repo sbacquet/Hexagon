@@ -22,6 +22,8 @@ namespace Hexagon
             public bool AllowLocalRoutee = false;
             public int LocalRouterResizeMin = 1;
             public int LocalRouterResizeMax = 1;
+            public int TailChoppingRouterWithinInSeconds = 10;
+            public int TailChoppingRouterIntervalInMilliseconds = 100;
         }
         [XmlIgnore]
         Dictionary<string, ProcessingUnitProps> ProcessingUnitPropsDict;

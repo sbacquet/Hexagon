@@ -255,7 +255,14 @@ namespace Hexagon.AkkaImpl
                         if (props.LocalRouterResizeMin > 0 && props.LocalRouterResizeMax >= props.LocalRouterResizeMin)
                         {
                             string router = props.Router ?? Constants.DefaultRouter;
-                            actorProps = GetLocalRouterPool(router, props.LocalRouterResizeMin, props.LocalRouterResizeMax).Props(actorProps);
+                            actorProps = 
+                                GetLocalRouterPool(
+                                    router, 
+                                    props.LocalRouterResizeMin, 
+                                    props.LocalRouterResizeMax,
+                                    TimeSpan.FromSeconds(props.TailChoppingRouterWithinInSeconds),
+                                    TimeSpan.FromMilliseconds(props.TailChoppingRouterIntervalInMilliseconds))
+                                .Props(actorProps);
                         }
                     }
                 }
@@ -265,7 +272,10 @@ namespace Hexagon.AkkaImpl
                     Logger.Debug(@"Deploying remote processing unit ""{0}"" with router ""{1}""", actorName, router);
                     actorProps =
                         new ClusterRouterPool(
-                            GetClusterRouterPool(router),
+                            GetClusterRouterPool(
+                                router,
+                                TimeSpan.FromSeconds(props?.TailChoppingRouterWithinInSeconds ?? 10),
+                                TimeSpan.FromMilliseconds(props?.TailChoppingRouterIntervalInMilliseconds ?? 100)),
                             new ClusterRouterPoolSettings(props?.TotalMaxClusterRoutees ?? 1, props?.MaxRouteesPerNode ?? 1, props?.AllowLocalRoutee ?? false, routeOnRole))
                         .Props(
                             Props.Create<Actor<M, P>>(
@@ -287,25 +297,39 @@ namespace Hexagon.AkkaImpl
             Logger.Debug("Processing units registered properly");
         }
 
-        Pool GetLocalRouterPool(string routerName, int resizeMin, int resizeMax)
+        Type GetRouterType(string routerName)
         {
             var path = $"akka.actor.router.type-mapping.{routerName}-pool";
             var routerTypeName = ActorSystem.Settings.Config.GetString(path);
-            var routerType = Type.GetType($"{routerTypeName}, Akka");
+            return Type.GetType($"{routerTypeName}, Akka");
+        }
+
+        Pool GetLocalRouterPool(string routerName, int resizeMin, int resizeMax, TimeSpan tailChoppingWithin, TimeSpan tailChoppingInterval)
+        {
+            var routerType = GetRouterType(routerName);
             Resizer resizer = null;
             if (resizeMin >= 0 && resizeMax >= resizeMin)
                 resizer = new DefaultResizer(resizeMin, resizeMax);
             else
                 Logger.Error(@"Cannot apply resizing parameters for router ""{0}""", routerName);
-            return (Pool)Activator.CreateInstance(routerType, 0, resizer, Pool.DefaultSupervisorStrategy, Akka.Dispatch.Dispatchers.DefaultDispatcherId, false);
+            List<object> args = new List<object>(new object[] { 0, resizer, Pool.DefaultSupervisorStrategy, Akka.Dispatch.Dispatchers.DefaultDispatcherId });
+            if (routerName == "tail-chopping")
+            {
+                args.AddRange(new object[] { tailChoppingWithin, tailChoppingInterval });
+            }
+            args.Add(false);
+            return (Pool)Activator.CreateInstance(routerType, args.ToArray());
         }
 
-        Pool GetClusterRouterPool(string routerName)
+        Pool GetClusterRouterPool(string routerName, TimeSpan tailChoppingWithin, TimeSpan tailChoppingInterval)
         {
-            var path = $"akka.actor.router.type-mapping.{routerName}-pool";
-            var routerTypeName = ActorSystem.Settings.Config.GetString(path);
-            var routerType = Type.GetType($"{routerTypeName}, Akka");
-            return (Pool)Activator.CreateInstance(routerType, 0);
+            var routerType = GetRouterType(routerName);
+            List<object> args = new List<object>(new object[] { 0 });
+            if (routerName == "tail-chopping")
+            {
+                args.AddRange(new object[] { tailChoppingWithin, tailChoppingInterval });
+            }
+            return (Pool)Activator.CreateInstance(routerType, args.ToArray());
         }
 
         async Task RegisterToGlobalDirectoryAsync(NodeConfig nodeConfig, IEnumerable<(string puId, IActorRef actor, IEnumerable<P> patterns)> actors)
