@@ -38,7 +38,7 @@ namespace Hexagon.AkkaImpl
             CreateReceivers(actions, asyncActions, factory, messageSystem);
         }
 
-        public Actor(string processingUnitId, (EActionType Type, (string[] Conjuncts, bool IsSecondary) Pattern, string Code)[] actionCodes)
+        public Actor(string processingUnitId, (string Type, (string[] Conjuncts, bool IsSecondary) Pattern, string Code)[] actionCodes)
         {
             Logger = new Logger(Akka.Event.Logging.GetLogger(Context));
             var messageSystem = AkkaMessageSystem<M, P>.Instance;
@@ -46,7 +46,7 @@ namespace Hexagon.AkkaImpl
 
             foreach (var action in actionCodes)
             {
-                switch (action.Type)
+                switch ((EActionType)Enum.Parse(typeof(EActionType), action.Type))
                 {
                     case EActionType.Code:
                         if (Logger.IsDebugEnabled)

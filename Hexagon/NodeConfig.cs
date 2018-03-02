@@ -36,6 +36,9 @@ namespace Hexagon
         public List<string> Roles { get; private set; }
         [XmlArrayItem("Name")]
         public List<string> Assemblies { get; private set; }
+        [XmlArrayItem("Path")]
+        public List<string> AssemblyLocations { get; private set; }
+
         [XmlArrayItem("ProcessingUnit")]
         public ProcessingUnitProps[] ProcessingUnits
         {
@@ -55,6 +58,7 @@ namespace Hexagon
             Assemblies = new List<string>();
             ProcessingUnitPropsDict = new Dictionary<string, ProcessingUnitProps>();
             SeedNodes = new List<string>();
+            AssemblyLocations = new List<string>();
         }
 
         public NodeConfig(string nodeId) : this()
@@ -105,5 +109,8 @@ namespace Hexagon
 
         public void AddSeedNode(string node)
             => SeedNodes.Add(node);
+
+        public void AddAssemblyLocation(string path)
+            => AssemblyLocations.Add(path);
     }
 }

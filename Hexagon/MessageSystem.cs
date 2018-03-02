@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
+using System.Reflection;
 
 namespace Hexagon
 {
@@ -35,7 +36,37 @@ namespace Hexagon
         public M SendMessageAndAwaitResponse(M message, ICanReceiveMessage<M> sender, TimeSpan? timeout = null, System.Threading.CancellationToken? cancellationToken = null)
             => SendMessageAndAwaitResponseAsync(message, sender, timeout, cancellationToken).Result;
 
-        public abstract Task StartAsync(NodeConfig nodeConfig, PatternActionsRegistry<M, P> registry = null);
+        protected abstract Task DoStartAsync(NodeConfig nodeConfig, PatternActionsRegistry<M, P> registry = null);
+
+        public async Task StartAsync(NodeConfig nodeConfig, PatternActionsRegistry<M, P> registry = null)
+        {
+            if (nodeConfig.AssemblyLocations != null && nodeConfig.AssemblyLocations.Any())
+                InstallAssemblyResolver(nodeConfig.AssemblyLocations.Distinct());
+            await DoStartAsync(nodeConfig, registry);
+        }
+
+        private void InstallAssemblyResolver(IEnumerable<string> assemblyLocations)
+        {
+            AppDomain currentDomain = AppDomain.CurrentDomain;
+            currentDomain.AssemblyResolve += (sender, args) =>
+            {
+                var assemblyName = new AssemblyName(args.Name);
+                foreach (var assemblyLocation in assemblyLocations)
+                {
+                    try
+                    {
+                        var assembly = Assembly.LoadFrom($@"{assemblyLocation}\{assemblyName.Name}.dll");
+                        if (Logger.IsDebugEnabled)
+                            Logger.Debug(@"Loaded {0}.dll from {1}", assemblyName.Name, assemblyLocation);
+                        return assembly;
+                    }
+                    catch
+                    {
+                    }
+                }
+                throw new System.IO.FileLoadException("cannot find assembly {0}", args.Name);
+            };
+        }
 
         public void Start(NodeConfig nodeConfig, PatternActionsRegistry<M, P> registry = null)
             => StartAsync(nodeConfig, registry).Wait();

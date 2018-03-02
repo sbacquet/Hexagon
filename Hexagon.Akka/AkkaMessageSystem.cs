@@ -167,7 +167,7 @@ namespace Hexagon.AkkaImpl
             }
         }
 
-        public override async Task StartAsync(NodeConfig nodeConfig, PatternActionsRegistry<M, P> registry = null)
+        protected override async Task DoStartAsync(NodeConfig nodeConfig, PatternActionsRegistry<M, P> registry = null)
         {
             Logger.Info("Starting the message system...");
             // Initialize mediator
@@ -283,7 +283,7 @@ namespace Hexagon.AkkaImpl
                                 group
                                 .Select(
                                     entry =>
-                                    (entry.CodeType,
+                                    (entry.CodeType.ToString(),
                                     (entry.CodeType != EActionType.Code ? entry.Pattern.ToTuple() : (new string[] { }, false)),
                                     entry.Code))
                                 .Distinct()
