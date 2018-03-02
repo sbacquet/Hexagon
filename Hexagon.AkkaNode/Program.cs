@@ -48,6 +48,7 @@ namespace Hexagon.AkkaNode
             try
             {
                 var config = NodeConfig.FromFile<AkkaNodeConfig>(opts.ConfigPath);
+                Console.Title = config.NodeId;
                 using (var system = AkkaXmlMessageSystem.Create(config))
                 {
                     system.Start(config);
