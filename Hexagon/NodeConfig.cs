@@ -19,7 +19,7 @@ namespace Hexagon
             public string Router = null; // Will default to Hexagon.AkkaImpl.Constants.DefaultRouter
             public int TotalMaxClusterRoutees = 3;
             public int MaxRouteesPerNode = 1;
-            public bool AllowLocalRoutee = false;
+            public bool AllowLocalRoutee = true;
             public int LocalRouterResizeMin = 1;
             public int LocalRouterResizeMax = 1;
             public int TailChoppingRouterWithinInSeconds = 10;
