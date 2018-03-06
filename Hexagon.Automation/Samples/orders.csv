@@ -1,0 +1,12 @@
+#TYPE System.Management.Automation.PSCustomObject
+"Id","Instrument","Quantity","Side"
+"1","ACCOR","12","Buy"
+"2","VIVENDI","10","Sell"
+"3","IBM","100","Buy"
+"4","RENAULT","200","Buy"
+"5","PEUGEOT","300","Sell"
+"6","CITROEN","33","Buy"
+"7","ALPINE","124","Sell"
+"8","FERRARI","333","Buy"
+"9","PORSCHE","489","Buy"
+"10","OPEN","1000","Sell"
