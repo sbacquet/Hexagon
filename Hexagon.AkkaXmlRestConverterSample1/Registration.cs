@@ -15,25 +15,33 @@ namespace Hexagon.AkkaXmlRestConverterSample1
         static void Registration(RestRequestConvertersRegistry<XmlMessage> registry)
         {
             registry.AddConverter(XmlConverter.FromGET(
-                @"/ping", 
-                (path, query) => XmlMessage.FromString(string.Format(@"<ping>{0}</ping>", path.Length > 1 ? path[1] : "")), 
+                @"/order", 
+                (path, query) => XmlMessage.FromString(string.Format(@"<orderAction type=""get"" orderId=""{0}"" />", path.Length > 1 ? path[1] : "0")), 
                 message => message.ToJson()));
+
             registry.AddConverter(XmlConverter.FromPOST(
-                @"/",
-                (path, bodyJson) => XmlMessage.FromJson(bodyJson.ToString()), 
+                @"/order",
+                (path, bodyJson) =>
+                {
+                    string xmlTemplate = @"
+                        <orderAction type=""create"">
+                            <requestId>{0}</requestId>
+                            <order>
+                                <side>{3}</side>
+                                <instrument>{2}</instrument>
+                                <quantity>{1}</quantity>
+                            </order>
+                        </orderAction>";
+                    string xml = string.Format(
+                        xmlTemplate,
+                        System.Guid.NewGuid(),
+                        bodyJson["Quantity"],
+                        bodyJson["Instrument"],
+                        bodyJson["Side"]);
+                    return XmlMessage.FromString(xml);
+                }, 
                 true,
-                message => message.ToJson(),
-                "$.ping"));
-            registry.AddConverter(XmlConverter.FromGET(
-                @"/plic",
-                (path, query) => XmlMessage.FromString(string.Format(@"<plic>{0}</plic>", path.Length > 1 ? path[1] : "")),
                 message => message.ToJson()));
-            registry.AddConverter(XmlConverter.FromPOST(
-                @"/",
-                (path, bodyJson) => XmlMessage.FromJson(bodyJson.ToString()),
-                true,
-                message => message.ToJson(),
-                "$.plic"));
         }
     }
 }
