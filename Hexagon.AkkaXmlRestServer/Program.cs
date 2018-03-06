@@ -28,6 +28,8 @@ namespace Hexagon.AkkaXmlRestServer
 
         static void Main(string[] args)
         {
+            Console.Title = "REST server";
+
             CommandLine.Parser.Default.ParseArguments<Options>(args)
                 .WithParsed<Options>(opts => RunOptionsAndReturnExitCode(opts))
                 .WithNotParsed<Options>(errs => HandleParseError(errs));
@@ -75,8 +77,18 @@ namespace Hexagon.AkkaXmlRestServer
                         TimeSpan.FromSeconds(config.RequestTimeoutInSeconds), 
                         convertersRegistry);
 
-                    Console.WriteLine("Press Control-C to stop.");
-                    _quitEvent.WaitOne();
+                    Console.WriteLine("Press Control-C to exit, Enter to clear screen.");
+                    bool exit = false;
+                    do
+                    {
+                        if (Console.KeyAvailable)
+                        {
+                            var key = Console.ReadKey(true);
+                            if (key.Key == ConsoleKey.Enter)
+                                Console.Clear();
+                        }
+                        exit = _quitEvent.WaitOne(100);
+                    } while (!exit);
                 }
                 System.Environment.Exit(0);
             }

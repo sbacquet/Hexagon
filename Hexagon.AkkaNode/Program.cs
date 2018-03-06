@@ -52,29 +52,18 @@ namespace Hexagon.AkkaNode
                 using (var system = AkkaXmlMessageSystem.Create(config))
                 {
                     system.Start(config);
-                    Console.WriteLine("Press Control-C to stop.");
-                    _quitEvent.WaitOne();
-                    //while (Console.ReadKey(true).Key != ConsoleKey.Enter)
-                    //{
-                    //    try
-                    //    {
-                    //        var answer = system.SendMessageAndAwaitResponse(XmlMessage.FromString(@"<ping>Ping</ping>"), null);
-                    //        Console.WriteLine("Message1 received : {0}", answer?.Content);
-                    //    }
-                    //    catch (Exception)
-                    //    {
-                    //        Console.WriteLine("Error : cannot get response");
-                    //    }
-                    //    try
-                    //    {
-                    //        var answer2 = system.SendMessageAndAwaitResponse(XmlMessage.FromString(@"<plic>Plic</plic>"), null);
-                    //        Console.WriteLine("Message2 received : {0}", answer2?.Content);
-                    //    }
-                    //    catch (Exception)
-                    //    {
-                    //        Console.WriteLine("Error : cannot get response");
-                    //    }
-                    //}
+                    Console.WriteLine("Press Control-C to exit, Enter to clear screen.");
+                    bool exit = false;
+                    do
+                    {
+                        if (Console.KeyAvailable)
+                        {
+                            var key = Console.ReadKey(true);
+                            if (key.Key == ConsoleKey.Enter)
+                                Console.Clear();
+                        }
+                        exit = _quitEvent.WaitOne(100);
+                    } while (!exit);
                 }
                 System.Environment.Exit(0);
             }

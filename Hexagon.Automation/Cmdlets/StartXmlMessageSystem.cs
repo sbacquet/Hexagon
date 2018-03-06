@@ -70,13 +70,23 @@ namespace Hexagon.Automation.Cmdlets
             using (MessageSystem<XmlMessage, XmlMessagePattern> xmlMessageSystem = CreateSystem(config))
             {
                 xmlMessageSystem.Start(config, registry);
-                Console.WriteLine("Press Control-C to stop.");
+                Console.WriteLine("Press Control-C to exit, Enter to clear screen.");
                 Console.CancelKeyPress += (sender, e) =>
                 {
                     _quitEvent.Set();
                     e.Cancel = true;
                 };
-                _quitEvent.WaitOne();
+                bool exit = false;
+                do
+                {
+                    if (Console.KeyAvailable)
+                    {
+                        var key = Console.ReadKey(true);
+                        if (key.Key == ConsoleKey.Enter)
+                            Console.Clear();
+                    }
+                    exit = _quitEvent.WaitOne(100);
+                } while (!exit);
             }
         }
 
