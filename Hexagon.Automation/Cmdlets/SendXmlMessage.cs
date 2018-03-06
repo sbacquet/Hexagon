@@ -18,9 +18,12 @@ namespace Hexagon.Automation.Cmdlets
         [Parameter(Mandatory = true)]
         public XmlDocument Message { get; set; }
 
+        [Parameter(Mandatory = false)]
+        public ICanReceiveMessage<XmlMessage> Sender { get; set; }
+
         protected override void EndProcessing()
         {
-            System.SendMessage(XmlMessage.FromXml(Message), null);
+            System.SendMessage(XmlMessage.FromXml(Message), Sender);
         }
     }
 
