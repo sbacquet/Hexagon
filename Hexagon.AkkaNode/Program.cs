@@ -52,6 +52,7 @@ namespace Hexagon.AkkaNode
                 using (var system = AkkaXmlMessageSystem.Create(config))
                 {
                     system.Start(config);
+                    var exitHandler = new WinExitSignal(system);
                     Console.WriteLine("Press Control-C to exit, Enter to clear screen.");
                     bool exit = false;
                     do
