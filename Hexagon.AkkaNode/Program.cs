@@ -42,28 +42,28 @@ namespace Hexagon.AkkaNode
                 System.Environment.Exit(0);
             }
 
-            Console.CancelKeyPress += (sender, e) =>
-            {
-                _quitEvent.Set();
-                e.Cancel = true;
-            };
-
             try
             {
                 var config = NodeConfig.FromFile<AkkaNodeConfig>(opts.ConfigPath);
-                if (!opts.NotInteractive)
-                    Console.Title = config.NodeId;
                 using (var system = AkkaXmlMessageSystem.Create(config))
                 {
                     system.Start(config);
-                    if (!opts.NotInteractive)
-                        Console.WriteLine("Press Control-C to exit, Enter to clear screen.");
+					var exitHandler = new WinExitSignal(opts.NotInteractive, system);
                     if (opts.NotInteractive)
                     {
+                        exitHandler.Exit += (sender, args) => System.Environment.Exit(0);
+                        // Waits forever
                         _quitEvent.WaitOne();
                     }
                     else
                     {
+                        Console.CancelKeyPress += (sender, e) =>
+                        {
+                            _quitEvent.Set();
+                            e.Cancel = true;
+                        };
+                        Console.Title = config.NodeId;
+                        Console.WriteLine("Press Control-C to exit, Enter to clear screen.");
                         bool exit = false;
                         do
                         {
