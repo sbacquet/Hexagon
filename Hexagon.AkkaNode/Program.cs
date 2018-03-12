@@ -17,6 +17,9 @@ namespace Hexagon.AkkaNode
 
         [Option('g', "generateConfig", Required = false, HelpText = "Generate an empty config file template.")]
         public bool GenerateConfig { get; set; }
+
+        [Option('n', "notInteractive", Required = false, HelpText = "Set to true when the console host is not available (run as a service)")]
+        public bool NotInteractive { get; set; }
     }
     class Program
     {
@@ -48,28 +51,38 @@ namespace Hexagon.AkkaNode
             try
             {
                 var config = NodeConfig.FromFile<AkkaNodeConfig>(opts.ConfigPath);
-                Console.Title = config.NodeId;
+                if (!opts.NotInteractive)
+                    Console.Title = config.NodeId;
                 using (var system = AkkaXmlMessageSystem.Create(config))
                 {
                     system.Start(config);
-                    Console.WriteLine("Press Control-C to exit, Enter to clear screen.");
-                    bool exit = false;
-                    do
+                    if (!opts.NotInteractive)
+                        Console.WriteLine("Press Control-C to exit, Enter to clear screen.");
+                    if (opts.NotInteractive)
                     {
-                        if (Console.KeyAvailable)
+                        _quitEvent.WaitOne();
+                    }
+                    else
+                    {
+                        bool exit = false;
+                        do
                         {
-                            var key = Console.ReadKey(true);
-                            if (key.Key == ConsoleKey.Enter)
-                                Console.Clear();
-                        }
-                        exit = _quitEvent.WaitOne(100);
-                    } while (!exit);
+                            if (Console.KeyAvailable)
+                            {
+                                var key = Console.ReadKey(true);
+                                if (key.Key == ConsoleKey.Enter)
+                                    Console.Clear();
+                            }
+                            exit = _quitEvent.WaitOne(100);
+                        } while (!exit);
+                    }
                 }
                 System.Environment.Exit(0);
             }
             catch (Exception ex)
             {
-                Console.WriteLine("Error : {0}", ex.Message);
+                if (!opts.NotInteractive)
+                    Console.WriteLine("Error : {0}", ex.Message);
                 System.Environment.Exit(1);
             }
         }
